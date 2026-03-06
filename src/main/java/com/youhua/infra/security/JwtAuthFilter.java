@@ -1,7 +1,7 @@
 package com.youhua.infra.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.youhua.auth.service.impl.AuthServiceImpl;
+import com.youhua.auth.service.AuthService;
 import com.youhua.common.exception.BizException;
 import com.youhua.common.exception.ErrorCode;
 import com.youhua.common.response.ErrorResponse;
@@ -44,7 +44,13 @@ public class JwtAuthFilter implements Filter {
             "/favicon.ico"
     );
 
-    private final AuthServiceImpl authService;
+    // Additional exact-match public paths (engine endpoints used pre-auth)
+    private static final Set<String> PUBLIC_EXACT_PATHS = Set.of(
+            "/api/v1/engine/pressure:assess",
+            "/api/v1/engine/apr:calculate"
+    );
+
+    private final AuthService authService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -84,6 +90,9 @@ public class JwtAuthFilter implements Filter {
     }
 
     private boolean isPublicPath(String path) {
+        if (PUBLIC_EXACT_PATHS.contains(path)) {
+            return true;
+        }
         for (String prefix : PUBLIC_PREFIXES) {
             if (path.startsWith(prefix)) {
                 return true;

@@ -44,7 +44,6 @@ public class AuthServiceImpl implements AuthService {
     private static final String SESSION_KEY_PREFIX = "session:";
     private static final long SMS_CODE_TTL_MINUTES = 5;
     private static final long SMS_LIMIT_TTL_SECONDS = 60;
-    private static final long JWT_EXPIRE_DAYS = 7;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final UserMapper userMapper;
@@ -53,6 +52,10 @@ public class AuthServiceImpl implements AuthService {
 
     @Value("${youhua.auth.jwt-secret:youhuajia-dev-secret-key-2024}")
     private String jwtSecret;
+
+    /** JWT expiration in seconds, defaults to 30 days (2592000) */
+    @Value("${youhua.auth.jwt-expiration:2592000}")
+    private long jwtExpirationSeconds;
 
     @Override
     public void sendSms(SendSmsRequest request) {
@@ -126,23 +129,48 @@ public class AuthServiceImpl implements AuthService {
 
         // Store session in Redis
         String sessionKey = SESSION_KEY_PREFIX + user.getId();
-        redisTemplate.opsForValue().set(sessionKey, token, JWT_EXPIRE_DAYS, TimeUnit.DAYS);
+        redisTemplate.opsForValue().set(sessionKey, token, jwtExpirationSeconds, TimeUnit.SECONDS);
 
         log.info("[AuthService] Session created userId={} newUser={}", user.getId(), isNewUser);
 
         return LoginResponse.builder()
                 .accessToken(token)
                 .refreshToken(token)
-                .expiresIn((int) (JWT_EXPIRE_DAYS * 24 * 3600))
+                .expiresIn((int) jwtExpirationSeconds)
                 .userId("users/" + user.getId())
                 .newUser(isNewUser)
                 .build();
     }
 
     @Override
-    public LoginResponse refreshSession() {
-        // TODO MVP 暂不实现
-        throw new BizException(ErrorCode.TOKEN_INVALID, "Refresh token not supported in MVP");
+    public LoginResponse refreshSession(String refreshToken) {
+        // Parse userId directly from the refresh token — /auth/ paths are skipped by JwtAuthFilter
+        // so RequestContext is not populated on this endpoint.
+        Long userId = verifyJwtAndGetUserId(refreshToken);
+
+        String sessionKey = SESSION_KEY_PREFIX + userId;
+        String storedToken = redisTemplate.opsForValue().get(sessionKey);
+        if (storedToken == null) {
+            throw new BizException(ErrorCode.TOKEN_INVALID, "Session expired, please login again");
+        }
+
+        com.youhua.auth.entity.User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BizException(ErrorCode.TOKEN_INVALID, "User not found");
+        }
+
+        String newToken = generateJwt(userId, user.getPhone());
+        redisTemplate.opsForValue().set(sessionKey, newToken, jwtExpirationSeconds, TimeUnit.SECONDS);
+
+        log.info("[AuthService] Session refreshed userId={}", userId);
+
+        return LoginResponse.builder()
+                .accessToken(newToken)
+                .refreshToken(newToken)
+                .expiresIn((int) jwtExpirationSeconds)
+                .userId("users/" + userId)
+                .newUser(false)
+                .build();
     }
 
     @Override
@@ -184,7 +212,7 @@ public class AuthServiceImpl implements AuthService {
             String header = Base64.getUrlEncoder().withoutPadding()
                     .encodeToString("{\"alg\":\"HS256\",\"typ\":\"JWT\"}".getBytes(StandardCharsets.UTF_8));
 
-            long exp = System.currentTimeMillis() / 1000 + JWT_EXPIRE_DAYS * 24 * 3600;
+            long exp = System.currentTimeMillis() / 1000 + jwtExpirationSeconds;
             String payloadJson = String.format("{\"userId\":%d,\"exp\":%d}", userId, exp);
             String payload = Base64.getUrlEncoder().withoutPadding()
                     .encodeToString(payloadJson.getBytes(StandardCharsets.UTF_8));

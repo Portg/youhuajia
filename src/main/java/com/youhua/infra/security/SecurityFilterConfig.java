@@ -1,7 +1,7 @@
 package com.youhua.infra.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.youhua.auth.service.impl.AuthServiceImpl;
+import com.youhua.auth.service.AuthService;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,7 +12,7 @@ public class SecurityFilterConfig {
 
     @Bean
     public FilterRegistrationBean<JwtAuthFilter> jwtAuthFilterRegistration(
-            AuthServiceImpl authService, ObjectMapper objectMapper) {
+            AuthService authService, ObjectMapper objectMapper) {
         FilterRegistrationBean<JwtAuthFilter> registration = new FilterRegistrationBean<>();
         registration.setFilter(new JwtAuthFilter(authService, objectMapper));
         registration.addUrlPatterns("/api/*");

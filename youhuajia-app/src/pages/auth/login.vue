@@ -24,7 +24,8 @@ const phoneMasked = computed(() => {
 const phoneValid = computed(() => /^1[3-9]\d{9}$/.test(phone.value))
 const codeValid = computed(() => /^\d{4,6}$/.test(smsCode.value))
 const canSend = computed(() => phoneValid.value && countdown.value === 0 && !sending.value)
-const canLogin = computed(() => phoneValid.value && codeValid.value && !logging.value)
+const agreed = ref(false)
+const canLogin = computed(() => phoneValid.value && codeValid.value && !logging.value && agreed.value)
 
 const sendBtnText = computed(() => {
   if (sending.value) return '发送中...'
@@ -57,7 +58,19 @@ async function handleSendSms() {
   }
 }
 
+function goTerms() {
+  uni.navigateTo({ url: '/pages/terms/index' })
+}
+
+function goPrivacy() {
+  uni.navigateTo({ url: '/pages/privacy/index' })
+}
+
 async function handleLogin() {
+  if (!agreed.value) {
+    uni.showToast({ title: '请先阅读并同意协议', icon: 'none' })
+    return
+  }
   if (!canLogin.value) return
   logging.value = true
   try {
@@ -86,6 +99,9 @@ async function handleLogin() {
   <view class="page">
     <!-- 顶部品牌区域 -->
     <view class="header-section">
+      <view class="app-icon">
+        <text class="app-icon-text">优</text>
+      </view>
       <text class="brand-title">优化家</text>
       <text class="brand-subtitle">登录后开始你的债务优化之旅</text>
     </view>
@@ -142,14 +158,19 @@ async function handleLogin() {
       </view>
     </view>
 
-    <!-- 底部协议 -->
+    <!-- 底部协议勾选 -->
     <view class="footer-section">
-      <text class="agreement-text">
-        登录即表示同意
-        <text class="link">用户协议</text>
-        和
-        <text class="link">隐私政策</text>
-      </text>
+      <view class="agreement-row" @tap="agreed = !agreed">
+        <view class="checkbox" :class="{ 'checkbox-checked': agreed }">
+          <text v-if="agreed" class="check-icon">&#10003;</text>
+        </view>
+        <text class="agreement-text">我已阅读并同意</text>
+      </view>
+      <view class="agreement-links">
+        <text class="link" @tap="goTerms">《用户服务协议》</text>
+        <text class="agreement-text">和</text>
+        <text class="link" @tap="goPrivacy">《隐私政策》</text>
+      </view>
     </view>
 
     <SafeAreaBottom />
@@ -167,7 +188,28 @@ async function handleLogin() {
 }
 
 .header-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   padding: 120rpx $spacing-xl $spacing-2xl;
+}
+
+.app-icon {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: $radius-xl;
+  background: $primary-gradient;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: $spacing-lg;
+  box-shadow: $shadow-primary;
+}
+
+.app-icon-text {
+  font-size: 56rpx;
+  font-weight: $weight-black;
+  color: $text-inverse;
 }
 
 .brand-title {
@@ -265,7 +307,34 @@ async function handleLogin() {
 
 .footer-section {
   padding: $spacing-xl;
-  text-align: center;
+}
+
+.agreement-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-sm;
+}
+
+.checkbox {
+  width: 36rpx;
+  height: 36rpx;
+  border: 2rpx solid $text-tertiary;
+  border-radius: $radius-sm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.checkbox-checked {
+  background: $primary;
+  border-color: $primary;
+}
+
+.check-icon {
+  font-size: 24rpx;
+  color: #FFFFFF;
 }
 
 .agreement-text {
@@ -274,7 +343,15 @@ async function handleLogin() {
   line-height: 1.6;
 }
 
+.agreement-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: $spacing-xs;
+}
+
 .link {
+  font-size: $font-xs;
   color: $primary;
 }
 </style>

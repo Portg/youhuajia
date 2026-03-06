@@ -1,6 +1,7 @@
 package com.youhua.auth.controller;
 
 import com.youhua.auth.dto.request.LoginRequest;
+import com.youhua.auth.dto.request.RefreshTokenRequest;
 import com.youhua.auth.dto.request.SendSmsRequest;
 import com.youhua.auth.dto.response.LoginResponse;
 import com.youhua.auth.service.AuthService;
@@ -35,8 +36,8 @@ public class AuthController {
 
     @Operation(summary = "刷新 Token")
     @PostMapping("/auth/sessions:refresh")
-    public LoginResponse refreshSession() {
-        return authService.refreshSession();
+    public LoginResponse refreshSession(@Valid @RequestBody RefreshTokenRequest request) {
+        return authService.refreshSession(request.getRefreshToken());
     }
 
     @Operation(summary = "退出登录（撤销会话）")

@@ -10,7 +10,13 @@ public interface AuthService {
 
     LoginResponse createSession(LoginRequest request);
 
-    LoginResponse refreshSession();
+    LoginResponse refreshSession(String refreshToken);
 
     void revokeSession();
+
+    /**
+     * Verify a JWT token and extract the userId.
+     * Used by JwtAuthFilter for request authentication.
+     */
+    Long verifyJwtAndGetUserId(String token);
 }
