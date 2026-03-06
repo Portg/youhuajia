@@ -1,5 +1,11 @@
 <template>
   <view class="page">
+    <!-- 加载态 -->
+    <view v-if="profileStore.loading && !profileStore.profile" class="loading-wrap">
+      <text class="loading-text">加载数据中...</text>
+    </view>
+
+    <template v-else>
     <!-- 顶部 -->
     <view class="page-top">
       <text class="page-title">利率模拟器</text>
@@ -139,11 +145,12 @@
       </text>
       <button class="cta-btn" @tap="goRisk">了解风险</button>
     </view>
+    </template>
   </view>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useProfileStore } from '../../stores/profile.js'
 import { useFunnelStore } from '../../stores/funnel.js'
 import AnimatedNumber from '../../components/AnimatedNumber.vue'
@@ -166,8 +173,9 @@ const effectiveMonthlyIncome = computed(() =>
   profileStore.profile?.monthlyIncome || funnelStore.monthlyIncome || 7500
 )
 
-// 用户拖动的目标 APR（初始 = 当前 APR）
-const targetApr = ref(24)
+// 用户拖动的目标 APR（初始 = 当前 APR，待画像加载后更新）
+const targetApr = ref(0)
+const targetAprInitialized = ref(false)
 
 // 滑块填充百分比（0 = 最左，100 = 最右/最优）
 const fillPct = computed(() => {
@@ -313,19 +321,32 @@ function fmt1(v) { return Number(v).toFixed(1) }
 function fmtInt(v) { return '¥' + Math.round(Number(v)).toLocaleString('zh-CN') }
 
 function goRisk() {
+  funnelStore.advanceStep(7)
   uni.navigateTo({ url: '/pages/page7-risk-assessment/index' })
 }
 
-onMounted(async () => {
-  if (!profileStore.profile) await profileStore.loadProfile()
-  targetApr.value = currentApr.value
-  // 首次不自动模拟——滑块还没拖动，targetApr = currentApr，结果无意义
-  // 用户拖动滑块后 scheduleSimulate 会自动触发
+onMounted(() => {
+  if (!profileStore.profile) {
+    profileStore.loadProfile()
+  } else {
+    targetApr.value = currentApr.value
+  }
+})
+
+// 画像加载完成后初始化滑块值
+watch(() => profileStore.profile, (p) => {
+  if (p && !targetAprInitialized.value) {
+    targetApr.value = currentApr.value
+    targetAprInitialized.value = true
+  }
 })
 </script>
 
 <style scoped>
 .page { min-height: 100vh; background: #F8FAFE; display: flex; flex-direction: column; }
+
+.loading-wrap { flex: 1; display: flex; align-items: center; justify-content: center; }
+.loading-text { font-size: 28rpx; color: #6B7280; }
 
 /* 顶部 */
 .page-top { padding: 48rpx 32rpx 24rpx; background: #fff; }

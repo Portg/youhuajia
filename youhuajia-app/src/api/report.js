@@ -12,6 +12,7 @@ export function generateReport() {
   return request({
     url: '/reports:generate',
     method: 'POST',
+    timeout: 30000, // AI 生成建议耗时较长
   })
 }
 
@@ -36,5 +37,19 @@ export function exportReport(id) {
   return request({
     url: `/reports/${id}:export`,
     method: 'GET',
+  })
+}
+
+/**
+ * 获取报告列表
+ * GET /api/v1/reports
+ * @param {number} pageSize 每页数量
+ * @param {string} pageToken 分页令牌
+ */
+export function listReports(pageSize = 10, pageToken = '') {
+  return request({
+    url: '/reports',
+    method: 'GET',
+    data: { pageSize, ...(pageToken ? { pageToken } : {}) },
   })
 }

@@ -167,6 +167,7 @@ function onSkip() {
 }
 
 function goToCompanion() {
+  funnelStore.advanceStep(9)
   uni.navigateTo({ url: '/pages/page9-companion/index' })
 }
 </script>

@@ -43,7 +43,7 @@
           <text class="card-title">利率对比</text>
           <view class="card-row">
             <view class="metric-col">
-              <text class="metric-label">你的加权利率</text>
+              <text class="metric-label">你的综合利率</text>
               <text class="metric-val metric-accent">{{ fmt1(profileStore.weightedApr) }}%</text>
             </view>
             <view class="vsep"></view>
@@ -104,9 +104,17 @@
             </view>
           </view>
           <text class="card-note" v-if="highInterestCount > 0">
-            APR > 24% 的债务是优化重点
+            年化利率超过 24% 的债务是优化重点
           </text>
         </view>
+      </view>
+
+      <!-- 单笔债务提示 -->
+      <view class="info-banner" v-if="(profile?.debtCount || 0) === 1">
+        <text class="info-icon">ℹ</text>
+        <text class="info-text">
+          目前仅有一笔债务，优化空间取决于后续债务结构。录入更多债务可获得更精准的分析。
+        </text>
       </view>
 
       <!-- 信息提示（蓝色，非警告风格） -->
@@ -114,6 +122,13 @@
         <text class="info-icon">ℹ</text>
         <text class="info-text">
           以上分析基于你录入的 {{ profile?.debtCount || 0 }} 笔债务，仅供参考，不构成借贷建议。
+        </text>
+      </view>
+
+      <!-- 报告声明 -->
+      <view class="report-disclaimer">
+        <text class="disclaimer-text">
+          本报告仅供个人参考，不构成金融建议，请勿作为申请材料使用。
         </text>
       </view>
 
@@ -130,9 +145,11 @@
 <script setup>
 import { computed, onMounted } from 'vue'
 import { useProfileStore } from '../../stores/profile.js'
+import { useFunnelStore } from '../../stores/funnel.js'
 import AnimatedNumber from '../../components/AnimatedNumber.vue'
 
 const profileStore = useProfileStore()
+const funnelStore = useFunnelStore()
 const profile = computed(() => profileStore.profile)
 
 // 常量（对应 application.yml 配置的市场均值）
@@ -164,6 +181,7 @@ const highInterestCount = computed(() => profile.value?.highInterestDebtCount ||
 
 function handleGoOptimization() {
   const score = profileStore.score
+  funnelStore.advanceStep(5)
   uni.navigateTo({ url: `/pages/page5-optimization/index?score=${score}` })
 }
 
@@ -227,6 +245,10 @@ onMounted(() => {
 .info-banner { margin: 0 32rpx 24rpx; background: #D5E8F0; border-radius: 16rpx; padding: 20rpx 24rpx; display: flex; flex-direction: row; align-items: flex-start; gap: 12rpx; }
 .info-icon { font-size: 28rpx; color: #2E75B6; flex-shrink: 0; }
 .info-text { font-size: 24rpx; color: #2E75B6; line-height: 1.6; flex: 1; }
+
+/* 报告声明 */
+.report-disclaimer { margin: 0 32rpx 24rpx; text-align: center; }
+.disclaimer-text { font-size: 22rpx; color: #9CA3AF; line-height: 1.6; }
 
 /* CTA — 绝对没有"申请"按钮（F-12） */
 .cta-wrap { padding: 0 32rpx 56rpx; padding-bottom: calc(56rpx + env(safe-area-inset-bottom)); }

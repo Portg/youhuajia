@@ -4,6 +4,7 @@ import ProgressBar from '../../components/ProgressBar.vue'
 import YouhuaButton from '../../components/YouhuaButton.vue'
 import PressureGauge from './components/PressureGauge.vue'
 import { assessPressure } from '../../api/engine.js'
+import { batchCreateIncomes } from '../../api/income.js'
 import { useFunnelStore } from '../../stores/funnel.js'
 import { useAuthStore } from '../../stores/auth.js'
 import { formatMoneyInteger } from '../../utils/formatters.js'
@@ -56,7 +57,7 @@ function scheduleAssess() {
 }
 
 function localEstimate() {
-  if (monthlyPayment.value === 0) {
+  if (monthlyPayment.value === 0 || selectedIncome.value <= 0) {
     pressureIndex.value = 0
     pressureLevel.value = 'HEALTHY'
   } else {
@@ -88,9 +89,17 @@ async function remoteAssess() {
 }
 
 function goToDebts() {
+  if (selectedIncome.value <= 0) {
+    uni.showToast({ title: '请选择月收入区间', icon: 'none' })
+    return
+  }
   if (authStore.isLoggedIn) {
+    // fire-and-forget: POST income to backend without blocking navigation
+    batchCreateIncomes([{ incomeType: 'SALARY', amount: selectedIncome.value, primary: true }]).catch(() => {})
+    funnelStore.advanceStep(3)
     uni.navigateTo({ url: '/pages/page3-debt-input/index' })
   } else {
+    funnelStore.advanceStep(3)
     uni.navigateTo({ url: '/pages/auth/login?redirect=/pages/page3-debt-input/index' })
   }
 }
@@ -166,6 +175,15 @@ function goToDebts() {
 
     <!-- 底部 CTA -->
     <view class="cta-section">
+      <text class="motivation-text" v-if="pressureLevel === 'HEALTHY'">
+        月供压力健康，录入债务可发现更多优化空间
+      </text>
+      <text class="motivation-text" v-else-if="pressureLevel === 'MODERATE'">
+        有一定压力，录入具体债务看看能优化多少
+      </text>
+      <text class="motivation-text" v-else>
+        压力偏高，详细分析后帮你找到优化方案
+      </text>
       <YouhuaButton
         text="查看详细分析"
         type="primary"
@@ -328,6 +346,15 @@ function goToDebts() {
 
 .bottom-spacer {
   height: 120rpx;
+}
+
+.motivation-text {
+  display: block;
+  font-size: $font-sm;
+  color: $primary;
+  text-align: center;
+  margin-bottom: $spacing-md;
+  line-height: 1.5;
 }
 
 .cta-section {

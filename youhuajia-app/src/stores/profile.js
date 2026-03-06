@@ -6,6 +6,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getFinanceProfile, calculateFinanceProfile } from '../api/profile.js'
 import { simulateRate, simulateScore } from '../api/engine.js'
+import { useFunnelStore } from './funnel.js'
 
 export const useProfileStore = defineStore('profile', () => {
   const profile = ref(null)
@@ -30,7 +31,12 @@ export const useProfileStore = defineStore('profile', () => {
     loading.value = true
     error.value = ''
     _loadPromise = getFinanceProfile()
-      .then(data => { profile.value = data })
+      .then(data => {
+        profile.value = data
+        if (data) {
+          useFunnelStore().setFinanceProfile(data)
+        }
+      })
       .catch(e => { error.value = e.message || '加载失败' })
       .finally(() => { loading.value = false; _loadPromise = null })
     return _loadPromise
@@ -40,8 +46,17 @@ export const useProfileStore = defineStore('profile', () => {
     loading.value = true
     error.value = ''
     try {
-      await calculateFinanceProfile()
-      profile.value = await getFinanceProfile()
+      // calculate 返回完整画像，无需再 GET 一次
+      const data = await calculateFinanceProfile()
+      if (data && data.restructureScore != null) {
+        profile.value = data
+        useFunnelStore().setFinanceProfile(data)
+      } else {
+        // 兜底：后端未返回完整数据时补一次查询
+        const fallback = await getFinanceProfile()
+        profile.value = fallback
+        if (fallback) useFunnelStore().setFinanceProfile(fallback)
+      }
     } catch (e) {
       error.value = e.message || '计算失败'
       throw e

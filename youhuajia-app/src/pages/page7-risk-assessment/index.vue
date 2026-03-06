@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import ProgressBar from '../../components/ProgressBar.vue'
 import YouhuaButton from '../../components/YouhuaButton.vue'
+import { useFunnelStore } from '../../stores/funnel.js'
 
 // Q&A 数据（硬编码，每条答案具体不含糊，不说"一般不会"）
 const faqs = ref([
@@ -38,7 +39,10 @@ function toggleFaq(id) {
   }
 }
 
+const funnelStore = useFunnelStore()
+
 function goToAction() {
+  funnelStore.advanceStep(8)
   uni.navigateTo({ url: '/pages/page8-action-layers/index' })
 }
 </script>

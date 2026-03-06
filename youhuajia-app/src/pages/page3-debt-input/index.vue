@@ -28,7 +28,7 @@
           </view>
         </view>
         <view class="debt-right">
-          <text class="debt-apr" v-if="debt.apr">APR {{ formatRate(debt.apr) }}</text>
+          <text class="debt-apr" v-if="debt.apr">年化 {{ formatRate(debt.apr) }}</text>
           <text class="debt-status" :class="'s-' + (debt.status || '').toLowerCase()">
             {{ statusLabel(debt.status) }}
           </text>
@@ -140,7 +140,7 @@
             </view>
             <!-- APR 试算预览 -->
             <view class="apr-preview" v-if="aprPreview !== null">
-              <text class="apr-label">预计年化利率：</text>
+              <text class="apr-label">预计年利率：</text>
               <text class="apr-value">{{ formatRate(aprPreview) }}</text>
               <text class="apr-note" v-if="aprPreview > 24">年化偏高，留意成本</text>
             </view>
@@ -222,13 +222,15 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useDebtStore } from '../../stores/debt.js'
 import { useProfileStore } from '../../stores/profile.js'
+import { useFunnelStore } from '../../stores/funnel.js'
 import { calculateApr } from '../../api/engine.js'
 
 const debtStore = useDebtStore()
 const profileStore = useProfileStore()
+const funnelStore = useFunnelStore()
 
 // ---- 格式化工具 ----
 function formatMoney(v) {
@@ -419,6 +421,7 @@ async function handleGoReport() {
   try {
     await profileStore.triggerCalculation()
     uni.hideLoading()
+    funnelStore.advanceStep(4)
     uni.navigateTo({ url: '/pages/page4-loss-report/index' })
   } catch (_) {
     uni.hideLoading()
@@ -426,8 +429,15 @@ async function handleGoReport() {
   }
 }
 
-// 初始化
-debtStore.loadDebts()
+// 初始化：在页面挂载时加载，避免模块导入时即发请求
+onMounted(() => {
+  debtStore.loadDebts()
+})
+
+// 离开页面时清理 OCR 轮询定时器，防止内存泄漏
+onUnmounted(() => {
+  debtStore.cancelOcr()
+})
 </script>
 
 <style scoped>

@@ -41,16 +41,22 @@
     </view>
 
     <!-- 操作按钮 -->
+    <!-- 加载态：带进度文案 -->
+    <view v-if="loading" class="loading-section">
+      <view class="loading-spinner"></view>
+      <text class="loading-msg">{{ loadingText || '正在处理，请稍候...' }}</text>
+    </view>
+
+    <!-- 操作按钮 -->
     <view
-      v-if="active && !locked && status !== 'completed' && status !== 'disabled'"
+      v-if="active && !locked && status !== 'completed' && status !== 'disabled' && !loading"
       class="layer-actions"
     >
       <button
         class="action-btn"
-        :disabled="loading"
         @tap="$emit('action')"
       >
-        <text class="action-btn-text">{{ loading ? '处理中...' : actionText }}</text>
+        <text class="action-btn-text">{{ actionText }}</text>
       </button>
     </view>
 
@@ -79,6 +85,7 @@ const props = defineProps({
   locked: { type: Boolean, default: false },
   badge: { type: String, default: '' },
   loading: { type: Boolean, default: false },
+  loadingText: { type: String, default: '' },
   actionText: { type: String, default: '开始' },
 })
 
@@ -207,6 +214,33 @@ const showSkip = computed(() => {
   background-color: #f8fafe;
   border-radius: 12rpx;
   padding: 20rpx;
+}
+
+.loading-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32rpx 0;
+  gap: 16rpx;
+}
+
+.loading-spinner {
+  width: 48rpx;
+  height: 48rpx;
+  border: 4rpx solid #d5e8f0;
+  border-top-color: #2e75b6;
+  border-radius: 50%;
+  animation: spin-layer 0.8s linear infinite;
+}
+
+@keyframes spin-layer {
+  to { transform: rotate(360deg); }
+}
+
+.loading-msg {
+  font-size: 26rpx;
+  color: #6b7280;
+  text-align: center;
 }
 
 .layer-actions {

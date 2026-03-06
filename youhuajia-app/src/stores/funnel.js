@@ -59,8 +59,8 @@ export const useFunnelStore = defineStore('funnel', () => {
 
   function setFinanceProfile(profile) {
     financeProfile.value = profile
-    if (profile?.score) {
-      score.value = profile.score
+    if (profile?.restructureScore) {
+      score.value = Number(profile.restructureScore)
     }
   }
 
@@ -126,4 +126,8 @@ export const useFunnelStore = defineStore('funnel', () => {
     toggleChecklistItem,
     reset,
   }
+}, {
+  unistorage: {
+    paths: ['score', 'currentStep', 'pressureIndex', 'pressureLevel', 'actionLayers', 'checklist'],
+  },
 })

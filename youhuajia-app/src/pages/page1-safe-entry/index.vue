@@ -1,20 +1,25 @@
 <script setup>
 import YouhuaButton from '../../components/YouhuaButton.vue'
+import { useFunnelStore } from '../../stores/funnel.js'
+
+const funnelStore = useFunnelStore()
 
 function goToPressure() {
+  funnelStore.advanceStep(2)
   uni.navigateTo({ url: '/pages/page2-pressure-check/index' })
 }
 </script>
 
 <template>
   <view class="page">
-    <!-- 顶部插画区域 -->
+    <!-- 顶部品牌区域 -->
     <view class="hero-section">
-      <image
-        class="hero-image"
-        src="/static/images/entry-hero.png"
-        mode="aspectFit"
-      />
+      <view class="hero-placeholder">
+        <view class="app-icon">
+          <text class="app-icon-text">优</text>
+        </view>
+        <text class="hero-brand">优化家</text>
+      </view>
     </view>
 
     <!-- 标题区域 -->
@@ -39,10 +44,25 @@ function goToPressure() {
       </view>
     </view>
 
+    <!-- 信任标识 -->
+    <view class="trust-bar">
+      <view class="trust-item">
+        <text class="trust-icon">🔒</text>
+        <text class="trust-label">加密传输</text>
+      </view>
+      <view class="trust-item">
+        <text class="trust-icon">🚫</text>
+        <text class="trust-label">不接触资金</text>
+      </view>
+      <view class="trust-item">
+        <text class="trust-icon">📋</text>
+        <text class="trust-label">仅供参考</text>
+      </view>
+    </view>
+
     <!-- 底部 CTA -->
     <view class="cta-section">
       <YouhuaButton text="开始检查" type="primary" @click="goToPressure" />
-      <text class="disclaimer">数据仅在本次会话中使用，不会上传至服务器</text>
     </view>
   </view>
 </template>
@@ -59,7 +79,7 @@ function goToPressure() {
 }
 
 .hero-section {
-  height: 55vh;
+  height: 40vh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -67,9 +87,34 @@ function goToPressure() {
   padding: $spacing-2xl $spacing-xl 0;
 }
 
-.hero-image {
-  width: 100%;
-  height: 100%;
+.hero-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.app-icon {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: $radius-xl;
+  background: $primary-gradient;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: $shadow-primary;
+}
+
+.app-icon-text {
+  font-size: 80rpx;
+  font-weight: $weight-black;
+  color: $text-inverse;
+}
+
+.hero-brand {
+  font-size: 56rpx;
+  font-weight: 700;
+  color: $primary;
 }
 
 .title-section {
@@ -116,6 +161,29 @@ function goToPressure() {
 .feature-text {
   font-size: 26rpx;
   color: $text-secondary;
+}
+
+.trust-bar {
+  display: flex;
+  justify-content: center;
+  gap: $spacing-2xl;
+  padding: 0 $spacing-xl $spacing-md;
+}
+
+.trust-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6rpx;
+}
+
+.trust-icon {
+  font-size: 36rpx;
+}
+
+.trust-label {
+  font-size: $font-xs;
+  color: $text-tertiary;
 }
 
 .cta-section {

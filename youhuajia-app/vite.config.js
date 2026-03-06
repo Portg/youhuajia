@@ -3,6 +3,14 @@ import uni from '@dcloudio/vite-plugin-uni'
 
 export default defineConfig({
   plugins: [uni()],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+    },
+  },
   build: {
     // 分包：vendor（vue/pinia）独立缓存，业务代码按需加载
     rollupOptions: {
@@ -10,7 +18,6 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes('node_modules')) {
             if (id.includes('vue') || id.includes('pinia')) return 'vendor'
-            if (id.includes('ucharts') || id.includes('qiun')) return 'charts'
           }
         },
       },

@@ -50,3 +50,12 @@ export function simulateRate(params) {
 export function simulateScore(actions) {
   return requestSilent({ url: '/engine/score:simulate', method: 'POST', data: { actions } })
 }
+
+/**
+ * 预审通过概率估算
+ * POST /engine/preaudit:estimate
+ * @returns {{ probability: number, suggestions: string[] }}
+ */
+export function estimatePreAudit() {
+  return requestSilent({ url: '/engine/preaudit:estimate', method: 'POST' })
+}
