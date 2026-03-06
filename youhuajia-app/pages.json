@@ -1,6 +1,22 @@
 {
   "pages": [
     {
+      "path": "pages/home/index",
+      "style": {
+        "navigationBarTitleText": "优化家",
+        "navigationStyle": "custom",
+        "backgroundColor": "#F8FAFE"
+      }
+    },
+    {
+      "path": "pages/mine/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FFFFFF",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
       "path": "pages/page1-safe-entry/index",
       "style": {
         "navigationBarTitleText": "",
@@ -99,8 +115,67 @@
         "navigationBarBackgroundColor": "#FFFFFF",
         "navigationBarTextStyle": "black"
       }
+    },
+    {
+      "path": "pages/onboarding/index",
+      "style": {
+        "navigationStyle": "custom",
+        "backgroundColor": "#F8FAFE"
+      }
+    },
+    {
+      "path": "pages/privacy/index",
+      "style": {
+        "navigationBarTitleText": "隐私保护说明",
+        "navigationBarBackgroundColor": "#FFFFFF",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/reports",
+      "style": {
+        "navigationBarTitleText": "我的报告",
+        "navigationBarBackgroundColor": "#FFFFFF",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/feedback",
+      "style": {
+        "navigationBarTitleText": "意见反馈",
+        "navigationBarBackgroundColor": "#FFFFFF",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/about",
+      "style": {
+        "navigationBarTitleText": "关于优化家",
+        "navigationBarBackgroundColor": "#FFFFFF",
+        "navigationBarTextStyle": "black"
+      }
     }
   ],
+  "tabBar": {
+    "color": "#94A3B8",
+    "selectedColor": "#1B6DB2",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "首页",
+        "iconPath": "static/tab/home.png",
+        "selectedIconPath": "static/tab/home-active.png"
+      },
+      {
+        "pagePath": "pages/mine/index",
+        "text": "我的",
+        "iconPath": "static/tab/mine.png",
+        "selectedIconPath": "static/tab/mine-active.png"
+      }
+    ]
+  },
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarBackgroundColor": "#FFFFFF",
