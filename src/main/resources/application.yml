@@ -91,6 +91,9 @@ youhua:
     scoring:
       strategy-dir: ""
 
+    # ---------- 市场基准利率 ----------
+    market-base-apr: 18  # 市场基准年化利率（%），用于计算3年多付利息（F-09: 不得硬编码）
+
   # ---------- 规则引擎 ----------
   rules:
     # 数值合理性校验阈值
@@ -123,6 +126,10 @@ youhua:
     avg-monthly-rent: 6000.00        # 当地平均月租金（元），用于"相当于X个月房租"的类比
     healthy-debt-income-ratio: 0.40  # 健康负债收入比阈值，报告中标记为"建议控制在此以下"
     scoring-model-version: "v1.0"    # 报告页脚显示的评分模型版本号
+  # ---------- Auth ----------
+  auth:
+    jwt-expiration: 2592000  # JWT 有效期（秒），30天 = 30 * 24 * 3600
+
   # V2.0 reserved
   bank:
     enabled: false
