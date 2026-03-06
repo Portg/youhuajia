@@ -207,12 +207,15 @@ async function onLayer1() {
   }
 }
 
+// 判断是否为本地 fallback 的 reportId（非数字即为 fallback）
+function isLocalReport(id) { return !id || isNaN(Number(id)) }
+
 async function onLayer2() {
   layer2Loading.value = true
   errorMsg.value = ''
   try {
     const reportId = layer1.value.reportId
-    if (!reportId) throw new Error('no reportId')
+    if (isLocalReport(reportId)) throw new Error('local-fallback')
     const res = await getReport(reportId)
     funnelStore.completeLayer2()
     funnelStore.actionLayers.layer2.result = res
@@ -229,7 +232,7 @@ async function onLayer3() {
   errorMsg.value = ''
   try {
     const reportId = layer1.value.reportId
-    if (!reportId) throw new Error('no reportId')
+    if (isLocalReport(reportId)) throw new Error('local-fallback')
     const res = await exportReport(reportId)
     funnelStore.completeLayer3()
     funnelStore.actionLayers.layer3.result = res
