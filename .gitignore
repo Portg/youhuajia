@@ -38,8 +38,14 @@ out/
 # Test
 /coverage/
 
-# Claude Code
-.claude/
+# Claude Code — 共享项目配置，排除个人数据
+.claude/projects/
+.claude/worktrees/
+.claude/teams/
+.claude/tasks/
+.claude/debug/
+.claude/*.jsonl
+.claude/settings.local.json
 .ccteam/
 ccteam.yml
 
