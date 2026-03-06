@@ -47,6 +47,18 @@ public class FinanceProfile extends BaseVersionEntity {
 
     private Integer generationRetryCount;
 
+    /** 3年多付利息（相对市场基准利率） */
+    private BigDecimal threeYearExtraInterest;
+
+    /** 平均贷款天数 */
+    private Integer avgLoanDays;
+
+    /** 最高利率债权人名称 */
+    private String highestAprCreditor;
+
+    /** APR > 24% 的高息债务笔数 */
+    private Integer highInterestDebtCount;
+
     // ---- V2.0 预留 ----
     private BigDecimal assetTotal;
 

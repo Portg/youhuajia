@@ -20,8 +20,11 @@ import com.youhua.engine.dto.response.AssessPressureResponse;
 import com.youhua.engine.dto.response.AssessPressureResponse.PressureLevel;
 import com.youhua.engine.dto.response.CalculateAprResponse;
 import com.youhua.engine.dto.response.CompareStrategiesResponse;
+import com.youhua.engine.dto.response.PreAuditResponse;
 import com.youhua.engine.dto.response.SimulateRateResponse;
 import com.youhua.engine.dto.response.SimulateScoreResponse;
+import com.youhua.engine.scoring.PreAuditEngine;
+import com.youhua.engine.scoring.PreAuditEngine.PreAuditInput;
 import com.youhua.engine.scoring.ScoringEngine;
 import com.youhua.engine.scoring.ScoringEngine.DimensionDetail;
 import com.youhua.engine.scoring.ScoringEngine.ScoreInput;
@@ -61,6 +64,7 @@ public class EngineServiceImpl implements EngineService {
 
     private final AprCalculator aprCalculator;
     private final ScoringEngine scoringEngine;
+    private final PreAuditEngine preAuditEngine;
     private final DebtMapper debtMapper;
     private final IncomeRecordMapper incomeRecordMapper;
     private final PmmlStrategyRegistry strategyRegistry;
@@ -278,6 +282,68 @@ public class EngineServiceImpl implements EngineService {
                         .recommendation(null)
                         .build())
                 .scoreDelta(resultA.finalScore().subtract(resultB.finalScore()))
+                .build();
+    }
+
+    @Override
+    public PreAuditResponse preAudit() {
+        Long userId = RequestContextUtil.getCurrentUserId();
+
+        List<Debt> debts = debtMapper.selectList(new LambdaQueryWrapper<Debt>()
+                .eq(Debt::getUserId, userId)
+                .eq(Debt::getStatus, DebtStatus.IN_PROFILE)
+                .eq(Debt::getDeleted, 0));
+
+        List<IncomeRecord> incomeRecords = incomeRecordMapper.selectList(
+                new LambdaQueryWrapper<IncomeRecord>()
+                        .eq(IncomeRecord::getUserId, userId)
+                        .eq(IncomeRecord::getDeleted, 0));
+        BigDecimal monthlyIncome = calcMonthlyIncome(incomeRecords);
+
+        // Calculate score via scoring engine
+        BigDecimal score;
+        if (debts.isEmpty()) {
+            score = BigDecimal.ZERO;
+        } else {
+            ScoreInput scoreInput = buildScoreInput(debts, monthlyIncome);
+            ScoreResult scoreResult = scoringEngine.score(scoreInput);
+            score = scoreResult.finalScore();
+        }
+
+        // Debt-income ratio
+        BigDecimal monthlyPayment = debts.stream()
+                .filter(d -> d.getMonthlyPayment() != null)
+                .map(Debt::getMonthlyPayment)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal debtIncomeRatio = monthlyIncome.compareTo(BigDecimal.ZERO) > 0
+                ? monthlyPayment.divide(monthlyIncome, SCALE, ROUNDING)
+                : BigDecimal.ONE;
+
+        // Overdue check
+        boolean hasOverdue = debts.stream()
+                .anyMatch(d -> d.getOverdueStatus() != null && d.getOverdueStatus() != OverdueStatus.NORMAL);
+
+        // High APR ratio (APR > threshold from config)
+        BigDecimal highAprThreshold = preAuditEngine.getConfig() != null
+                && preAuditEngine.getConfig().getDimensions() != null
+                && preAuditEngine.getConfig().getDimensions().get("APR_HIGH") != null
+                && preAuditEngine.getConfig().getDimensions().get("APR_HIGH").getHighAprThreshold() != null
+                ? preAuditEngine.getConfig().getDimensions().get("APR_HIGH").getHighAprThreshold()
+                : new BigDecimal("24");
+
+        long highAprCount = debts.stream()
+                .filter(d -> d.getApr() != null && d.getApr().compareTo(highAprThreshold) > 0)
+                .count();
+        BigDecimal highAprRatio = debts.isEmpty()
+                ? BigDecimal.ZERO
+                : new BigDecimal(highAprCount).divide(new BigDecimal(debts.size()), SCALE, ROUNDING);
+
+        PreAuditInput input = new PreAuditInput(score, debtIncomeRatio, hasOverdue, debts.size(), highAprRatio);
+        PreAuditEngine.PreAuditResult result = preAuditEngine.estimate(input);
+
+        return PreAuditResponse.builder()
+                .probability(result.probability())
+                .suggestions(result.suggestions())
                 .build();
     }
 

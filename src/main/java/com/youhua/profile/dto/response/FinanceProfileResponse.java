@@ -29,4 +29,12 @@ public class FinanceProfileResponse {
     /** 评分各维度明细（DimensionDetail 列表） */
     private List<Map<String, Object>> scoreDimensions;
     private LocalDateTime lastCalculateTime;
+    /** 3年多付利息（相对市场基准利率，用于 Page4 核心展示） */
+    private BigDecimal threeYearExtraInterest;
+    /** 平均贷款天数（用于 Page6 利率模拟器） */
+    private Integer avgLoanDays;
+    /** 最高利率债权人名称（用于 Page9 展示） */
+    private String highestAprCreditor;
+    /** APR > 24% 的高息债务笔数（用于 Page4 展示） */
+    private Integer highInterestDebtCount;
 }

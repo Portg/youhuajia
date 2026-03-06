@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Adapter layer: delegates to report.service.ReportService (which does the heavy work)
@@ -133,9 +134,65 @@ public class ReportServiceImpl implements ReportService {
     // ===================== Private helpers =====================
 
     private ReportResponse toResponse(OptimizationReport report) {
+        // priorityListJson 存的是 List<String>（creditor 名称），转为 PriorityItem
+        List<ReportResponse.PriorityItem> priorityList = null;
+        if (report.getPriorityListJson() != null) {
+            try {
+                List<String> creditors = objectMapper.readValue(report.getPriorityListJson(),
+                        objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
+                if (creditors != null && !creditors.isEmpty()) {
+                    priorityList = new java.util.ArrayList<>();
+                    for (int i = 0; i < creditors.size(); i++) {
+                        priorityList.add(ReportResponse.PriorityItem.builder()
+                                .rank(i + 1)
+                                .creditor(creditors.get(i))
+                                .build());
+                    }
+                }
+            } catch (JsonProcessingException e) {
+                log.warn("[ReportService] Failed to deserialize priorityList for reportId={}", report.getId());
+            }
+        }
+
+        // actionPlanJson 存的是 List<String>（行动步骤）
+        List<String> actionSteps = null;
+        if (report.getActionPlanJson() != null) {
+            try {
+                actionSteps = objectMapper.readValue(report.getActionPlanJson(),
+                        objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
+            } catch (JsonProcessingException e) {
+                log.warn("[ReportService] Failed to deserialize actionPlan for reportId={}", report.getId());
+            }
+        }
+
+        // riskWarnings 存的是 List<ReportWarning>，提取 message 字段
+        List<String> riskWarnings = null;
+        if (report.getRiskWarnings() != null) {
+            try {
+                List<Map<String, Object>> warnings = objectMapper.readValue(report.getRiskWarnings(),
+                        objectMapper.getTypeFactory().constructCollectionType(List.class, Map.class));
+                if (warnings != null) {
+                    riskWarnings = warnings.stream()
+                            .map(w -> w.get("message") != null ? w.get("message").toString() : w.toString())
+                            .toList();
+                }
+            } catch (JsonProcessingException e) {
+                log.warn("[ReportService] Failed to deserialize riskWarnings for reportId={}", report.getId());
+            }
+        }
+
+        // actionSteps 放入 actionPlan map 中
+        Map<String, Object> actionPlan = null;
+        if (actionSteps != null && !actionSteps.isEmpty()) {
+            actionPlan = Map.of("steps", actionSteps);
+        }
+
         return ReportResponse.builder()
                 .name("reports/" + report.getId())
                 .aiSummary(report.getAiSummary())
+                .priorityList(priorityList)
+                .actionPlan(actionPlan)
+                .riskWarnings(riskWarnings)
                 .reportVersion(report.getReportVersion())
                 .createTime(report.getCreateTime())
                 .build();

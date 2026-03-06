@@ -1,0 +1,80 @@
+strategy_name: "预审通过概率估算"
+description: "基于用户评分、债务结构、收入情况等维度，按经验策略估算预审通过概率"
+version: "1.0"
+created_by: "系统"
+created_at: "2026-03-06"
+
+# 基准概率（0-100）
+base_probability: 50
+
+# 概率上下限（避免给极端值误导用户）
+min_probability: 35
+max_probability: 92
+
+# ============ 各维度加减分规则 ============
+# 每条规则：满足条件则 +delta 分
+
+dimensions:
+  SCORE:
+    label: "优化评分"
+    # 从高到低匹配，命中即停
+    thresholds:
+      - { min: 80, delta: 20 }
+      - { min: 60, delta: 10 }
+      - { min: 40, delta: 0 }
+      - { min: 0, delta: -10 }
+
+  DIR:
+    label: "负债收入比"
+    # max 指负债收入比上限
+    thresholds:
+      - { max: 0.30, delta: 10 }
+      - { max: 0.50, delta: 5 }
+      - { max: 0.70, delta: 0 }
+      - { max: 1.00, delta: -5 }
+      - { max: 999, delta: -10 }
+
+  OVD:
+    label: "逾期情况"
+    no_overdue_delta: 8
+    has_overdue_delta: -12
+
+  CST:
+    label: "债务笔数"
+    thresholds:
+      - { max: 2, delta: 5 }
+      - { max: 4, delta: 0 }
+      - { max: 6, delta: -5 }
+      - { max: 999, delta: -10 }
+
+  APR_HIGH:
+    label: "高利率债务占比"
+    # 高利率定义: APR > high_apr_threshold
+    high_apr_threshold: 24
+    thresholds:
+      - { max: 0.00, delta: 5 }
+      - { max: 0.30, delta: 0 }
+      - { max: 0.60, delta: -3 }
+      - { max: 1.00, delta: -8 }
+
+# ============ 建议规则 ============
+# 按顺序匹配，最多取前 3 条
+
+suggestions:
+  - condition: "HAS_OVERDUE"
+    text: "优先处理逾期债务，逾期记录是影响审批的关键因素"
+  - condition: "HIGH_APR_RATIO_GT_30"
+    text: "建议先偿还或协商高利率债务（年化>24%），降低综合负债成本"
+  - condition: "DIR_GT_70"
+    text: "月供占收入比例偏高，增加收入证明或降低月供可提高通过率"
+  - condition: "DEBT_COUNT_GT_4"
+    text: "负债笔数较多，整合债务后再申请效果更好"
+  - condition: "SCORE_GE_70"
+    text: "你的优化评分较高，保持当前良好状态继续推进"
+  - condition: "LOW_DIR_NO_OVERDUE"
+    text: "收入覆盖能力好且无逾期，准备好材料后通过率较高"
+  - condition: "SCORE_LT_50"
+    text: "建议先完成 30 天改善计划，提升评分后再申请"
+
+# 兜底建议（所有条件都不命中时使用）
+fallback_suggestion: "准备详细的收入证明和还款记录可提高通过率"

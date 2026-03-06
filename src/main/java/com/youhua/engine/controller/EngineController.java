@@ -6,6 +6,7 @@ import com.youhua.engine.dto.request.SimulateRateRequest;
 import com.youhua.engine.dto.request.SimulateScoreRequest;
 import com.youhua.engine.dto.response.AssessPressureResponse;
 import com.youhua.engine.dto.response.CalculateAprResponse;
+import com.youhua.engine.dto.response.PreAuditResponse;
 import com.youhua.engine.dto.response.SimulateRateResponse;
 import com.youhua.engine.dto.response.SimulateScoreResponse;
 import com.youhua.engine.service.EngineService;
@@ -48,5 +49,11 @@ public class EngineController {
     @PostMapping("/engine/score:simulate")
     public SimulateScoreResponse simulateScore(@Valid @RequestBody SimulateScoreRequest request) {
         return engineService.simulateScore(request);
+    }
+
+    @Operation(summary = "预审通过概率估算（基于评分+债务结构，规则引擎计算）")
+    @PostMapping("/engine/preaudit:estimate")
+    public PreAuditResponse preAudit() {
+        return engineService.preAudit();
     }
 }

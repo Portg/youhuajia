@@ -8,6 +8,7 @@ import com.youhua.engine.dto.request.SimulateScoreRequest;
 import com.youhua.engine.dto.response.AssessPressureResponse;
 import com.youhua.engine.dto.response.CalculateAprResponse;
 import com.youhua.engine.dto.response.CompareStrategiesResponse;
+import com.youhua.engine.dto.response.PreAuditResponse;
 import com.youhua.engine.dto.response.SimulateRateResponse;
 import com.youhua.engine.dto.response.SimulateScoreResponse;
 
@@ -22,4 +23,6 @@ public interface EngineService {
     SimulateScoreResponse simulateScore(SimulateScoreRequest request);
 
     CompareStrategiesResponse compareStrategies(CompareStrategiesRequest request);
+
+    PreAuditResponse preAudit();
 }

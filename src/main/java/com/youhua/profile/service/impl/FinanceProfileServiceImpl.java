@@ -27,6 +27,7 @@ import com.youhua.profile.mapper.IncomeRecordMapper;
 import com.youhua.profile.service.FinanceProfileService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -62,6 +63,9 @@ public class FinanceProfileServiceImpl implements FinanceProfileService {
     private final ObjectMapper objectMapper;
     private final ScoreRecordService scoreRecordService;
 
+    @Value("${youhua.engine.market-base-apr:18}")
+    private BigDecimal marketBaseApr;
+
     /**
      * Intermediate calculation result carried between pipeline steps.
      */
@@ -77,7 +81,11 @@ public class FinanceProfileServiceImpl implements FinanceProfileService {
             ScoringEngine.ScoreResult scoreResult,
             ScoringEngine.ScoreInput scoreInput,
             String scoreDetailJson,
-            int debtCount
+            int debtCount,
+            BigDecimal threeYearExtraInterest,
+            int avgLoanDays,
+            String highestAprCreditor,
+            int highInterestDebtCount
     ) {}
 
     @Override
@@ -234,16 +242,33 @@ public class FinanceProfileServiceImpl implements FinanceProfileService {
                 .mapToInt(Debt::getOverdueDays)
                 .max()
                 .orElse(0);
-        long avgLoanDays = (long) debts.stream()
+        int avgLoanDays = (int) Math.round(debts.stream()
                 .filter(d -> d.getLoanDays() != null)
                 .mapToInt(Debt::getLoanDays)
                 .average()
-                .orElse(0);
-        Long highestAprDebtId = debts.stream()
+                .orElse(0));
+        Debt highestAprDebt = debts.stream()
                 .filter(d -> d.getApr() != null)
                 .max((a, b) -> a.getApr().compareTo(b.getApr()))
-                .map(Debt::getId)
                 .orElse(null);
+        Long highestAprDebtId = highestAprDebt != null ? highestAprDebt.getId() : null;
+        String highestAprCreditor = highestAprDebt != null ? highestAprDebt.getCreditor() : null;
+        BigDecimal highInterestThreshold = new BigDecimal("24");
+        int highInterestDebtCount = (int) debts.stream()
+                .filter(d -> d.getApr() != null && d.getApr().compareTo(highInterestThreshold) > 0)
+                .count();
+
+        // Calculate 3-year extra interest: sum of principal × (apr - marketBaseApr) / 100 × 3 for debts above market rate
+        BigDecimal threeYearExtraInterest = debts.stream()
+                .filter(d -> d.getPrincipal() != null && d.getApr() != null
+                        && d.getApr().compareTo(marketBaseApr) > 0)
+                .map(d -> d.getPrincipal()
+                        .multiply(d.getApr().subtract(marketBaseApr))
+                        .divide(BigDecimal.valueOf(100), 6, RoundingMode.HALF_UP)
+                        .multiply(BigDecimal.valueOf(3)))
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(4, RoundingMode.HALF_UP);
+        log.debug("[FinanceProfile] userId={} threeYearExtraInterest={}", userId, threeYearExtraInterest);
 
         ScoringEngine.ScoreInput scoreInput = new ScoringEngine.ScoreInput(
                 monthlyPayment, monthlyIncome, weightedApr,
@@ -262,7 +287,8 @@ public class FinanceProfileServiceImpl implements FinanceProfileService {
 
         return new ProfileCalculationData(
                 totalDebt, monthlyPayment, monthlyIncome, weightedApr, debtIncomeRatio,
-                overdueCount, maxOverdueDays, highestAprDebtId, scoreResult, scoreInput, scoreDetailJson, debts.size()
+                overdueCount, maxOverdueDays, highestAprDebtId, scoreResult, scoreInput, scoreDetailJson, debts.size(),
+                threeYearExtraInterest, avgLoanDays, highestAprCreditor, highInterestDebtCount
         );
     }
 
@@ -287,6 +313,10 @@ public class FinanceProfileServiceImpl implements FinanceProfileService {
         profile.setOverdueCount(data.overdueCount());
         profile.setHighestAprDebtId(data.highestAprDebtId());
         profile.setScoreDetailJson(data.scoreDetailJson());
+        profile.setThreeYearExtraInterest(data.threeYearExtraInterest());
+        profile.setAvgLoanDays(data.avgLoanDays());
+        profile.setHighestAprCreditor(data.highestAprCreditor());
+        profile.setHighInterestDebtCount(data.highInterestDebtCount());
         profile.setGenerationStatus(ProfileGenerationStatus.COMPLETED);
         profile.setLastCalculatedTime(LocalDateTime.now());
     }
@@ -347,6 +377,10 @@ public class FinanceProfileServiceImpl implements FinanceProfileService {
                 .riskLevel(profile.getRiskLevel())
                 .scoreDimensions(scoreDimensions)
                 .lastCalculateTime(profile.getLastCalculatedTime())
+                .threeYearExtraInterest(profile.getThreeYearExtraInterest())
+                .avgLoanDays(profile.getAvgLoanDays())
+                .highestAprCreditor(profile.getHighestAprCreditor())
+                .highInterestDebtCount(profile.getHighInterestDebtCount())
                 .build();
     }
 }
