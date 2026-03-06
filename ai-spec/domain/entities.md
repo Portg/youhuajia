@@ -25,6 +25,7 @@ User (1) ──→ (N) ScoreRecord（评分记录，关联策略版本）
 User (1) ──→ (N) OperationLog
 User (1) ──→ (N) OcrTask
 OcrTask (1) ──→ (0..1) Debt（OCR 成功后关联生成的债务记录）
+User (1) ──→ (N) ConsultationRequest（咨询意向收集）
 ```
 
 ---
@@ -121,7 +122,13 @@ OcrTask (1) ──→ (0..1) Debt（OCR 成功后关联生成的债务记录）
 | overdue_count | INT | DEFAULT 0 | 逾期笔数 |
 | highest_apr_debt_id | BIGINT | NULL | 最高利率债务ID |
 | score_detail_json | JSON | | 评分维度明细（JSON结构） |
-| last_calculated_at | DATETIME(3) | | 最近一次计算时间 |
+| last_calculated_time | DATETIME(3) | | 最近一次计算时间 |
+| generation_status | VARCHAR(30) | NULL | 画像生成状态：IDLE / VALIDATING / CALCULATING / GENERATING_SUGGESTION / COMPLETED / COMPLETED_WITHOUT_AI / FAILED |
+| generation_retry_count | INT | NOT NULL, DEFAULT 0 | 画像生成重试次数 |
+| three_year_extra_interest | DECIMAL(18,4) | NULL | 3年多付利息（相对市场基准利率），用于 Page4/Page6 展示 |
+| avg_loan_days | INT | NULL | 平均贷款天数 |
+| highest_apr_creditor | VARCHAR(100) | NULL | 最高利率债权人名称，用于 Page4/Page9 展示 |
+| high_interest_debt_count | INT | NULL | APR > 24% 的高息债务笔数，用于 Page4 展示 |
 | asset_total | DECIMAL(18,4) | NULL | 总资产（V2.0预留） |
 | net_worth | DECIMAL(18,4) | NULL | 净资产（V2.0预留） |
 | family_profile_id | BIGINT | NULL | 家庭画像ID（V2.1预留） |
@@ -260,6 +267,28 @@ OcrTask (1) ──→ (0..1) Debt（OCR 成功后关联生成的债务记录）
 
 ---
 
+### 2.9 ConsultationRequest — 咨询意向
+
+> V7 迁移新增。用于 Page9（AI 陪伴页）收集用户咨询意向，由运营人员后续跟进。
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | BIGINT | PK, 雪花算法 | |
+| user_id | BIGINT | NOT NULL, IDX | 用户ID |
+| phone | VARCHAR(20) | NOT NULL | 联系手机号 |
+| consult_type | VARCHAR(32) | NOT NULL | DEBT_OPTIMIZATION / RATE_NEGOTIATION / GENERAL |
+| remark | VARCHAR(500) | NULL | 补充说明 |
+| status | VARCHAR(16) | NOT NULL, DEFAULT 'PENDING' | PENDING / CONTACTED / CLOSED |
+| create_time | DATETIME(3) | NOT NULL | |
+| update_time | DATETIME(3) | NOT NULL | |
+| deleted | INT | DEFAULT 0 | 逻辑删除 |
+
+**索引**：
+- `idx_consultation_request_user_id (user_id)` — 按用户查询
+- `idx_consultation_request_status (status)` — 按状态筛选待处理
+
+---
+
 **action_plan_json 示例**：
 ```json
 {
@@ -289,3 +318,19 @@ OcrTask (1) ──→ (0..1) Debt（OCR 成功后关联生成的债务记录）
   ]
 }
 ```
+
+---
+
+## 三、Schema 演进记录
+
+| 迁移版本 | 文件 | 说明 |
+|----------|------|------|
+| V1 | `V1__init_schema.sql` | 初始化所有核心表 |
+| V2 | `V2__add_state_machine_fields.sql` | FinanceProfile 增加 `generation_status`、`generation_retry_count`；User 增加 `cancellation_time` |
+| V3 | `V3__seed_test_data.sql` | 插入测试种子数据 |
+| V4 | `V4__add_failed_event_table.sql` | 新增失败事件表 |
+| V5 | `V5__add_score_record_table.sql` | 新增 ScoreRecord 评分记录表 |
+| V6 | `V6__backfill_debt_apr.sql` | 数据修补：为种子债务回填 APR 值（此前 apr 列为 NULL） |
+| V7 | `V7__add_consultation_request_table.sql` | 新增 ConsultationRequest 咨询意向表 |
+| V8 | `V8__add_profile_extra_fields.sql` | FinanceProfile 增加 `three_year_extra_interest`、`avg_loan_days`、`highest_apr_creditor` |
+| V9 | `V9__add_profile_high_interest_debt_count.sql` | FinanceProfile 增加 `high_interest_debt_count` |

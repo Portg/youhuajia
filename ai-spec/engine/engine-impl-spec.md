@@ -1,4 +1,4 @@
-# engine-impl-spec.md -- 三大引擎详细实现规范
+# engine-impl-spec.md -- 四大引擎详细实现规范
 
 > 本文件由架构师根据 apr-calc.md、scoring-model.md、rules.md、user-journey.md 综合输出。
 > 实现者必须严格遵循本规范，不得自行调整公式、阈值或建议文案。
@@ -693,7 +693,230 @@ IF profileCalcCountInLastHour > config.fraud.maxProfileCalcPerHour:
 
 ---
 
-## 附录：三引擎协作流程
+## 5.4 PreAuditEngine -- 预审通过概率估算引擎
+
+### 类定义
+
+- **包路径**：`com.youhua.engine.scoring`
+- **类名**：`PreAuditEngine`
+- **注解**：`@Component`
+- **依赖注入**：无外部依赖，通过 `@PostConstruct` 从 classpath 加载 YAML 配置
+
+### 定位
+
+PreAuditEngine 是第四个引擎，对应 Page 8 第三层"模拟审批结果"。基于用户的评分、债务结构、收入情况等维度，按经验策略估算预审通过概率。所有计算确定性可复现，不调用大模型（F-02）。
+
+前端在 `page8-action-layers/preaudit.js` 中实现了相同逻辑的 JavaScript 版本，与后端使用完全一致的规则配置，支持离线即时计算。
+
+### 配置文件（preaudit.meta.yml）
+
+配置文件位于 `classpath:strategies/preaudit.meta.yml`，POJO 映射类为 `PreAuditMetadata`。
+
+```yaml
+strategy_name: "预审通过概率估算"
+description: "基于用户评分、债务结构、收入情况等维度，按经验策略估算预审通过概率"
+version: "1.0"
+
+# 基准概率（0-100）
+base_probability: 50
+
+# 概率上下限（避免给极端值误导用户）
+min_probability: 35
+max_probability: 92
+
+# 各维度加减分规则
+dimensions:
+  SCORE:       # 优化评分 — 从高到低匹配 min 阈值，命中即停
+  DIR:         # 负债收入比 — 从低到高匹配 max 阈值
+  OVD:         # 逾期情况 — 二元判断（有/无逾期）
+  CST:         # 债务笔数 — 从低到高匹配 max 阈值
+  APR_HIGH:    # 高利率债务占比（APR > 24%）— 从低到高匹配 max 阈值
+
+# 建议规则：按顺序匹配，最多取前 3 条
+suggestions:
+  - condition: "HAS_OVERDUE" / "HIGH_APR_RATIO_GT_30" / "DIR_GT_70" / ...
+    text: "..."
+
+# 兜底建议
+fallback_suggestion: "准备详细的收入证明和还款记录可提高通过率"
+```
+
+### PreAuditMetadata POJO
+
+```
+com.youhua.engine.scoring.PreAuditMetadata
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| strategyName | String | 策略名称 |
+| description | String | 策略描述 |
+| version | String | 版本号 |
+| baseProbability | int | 基准概率（默认 50） |
+| minProbability | int | 概率下限（默认 35） |
+| maxProbability | int | 概率上限（默认 92） |
+| dimensions | Map<String, Dimension> | 维度配置，key 为维度标识 |
+| suggestions | List<SuggestionRule> | 建议规则列表 |
+| fallbackSuggestion | String | 兜底建议文案 |
+
+**Dimension 内嵌类**：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| label | String | 中文名称 |
+| thresholds | List<Threshold> | 阈值列表（SCORE/DIR/CST/APR_HIGH 使用） |
+| noOverdueDelta | Integer | 无逾期加分（OVD 专用） |
+| hasOverdueDelta | Integer | 有逾期减分（OVD 专用） |
+| highAprThreshold | BigDecimal | 高利率定义阈值（APR_HIGH 专用，默认 24） |
+
+**Threshold 内嵌类**：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| min | BigDecimal | 最小阈值（SCORE 使用，>=min 即命中） |
+| max | BigDecimal | 最大阈值（DIR/CST/APR_HIGH 使用，<=max 即命中） |
+| delta | int | 命中后的概率加减值 |
+
+**SuggestionRule 内嵌类**：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| condition | String | 条件标识 |
+| text | String | 建议文案 |
+
+### 核心方法
+
+#### 5.4.1 estimate -- 预审概率估算
+
+```
+public PreAuditResult estimate(PreAuditInput input)
+```
+
+**PreAuditInput（record）**：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| score | BigDecimal | 优化评分（0-100） |
+| debtIncomeRatio | BigDecimal | 负债收入比（0-1+） |
+| hasOverdue | boolean | 是否有逾期 |
+| debtCount | int | 债务笔数 |
+| highAprRatio | BigDecimal | 高利率债务占比（0-1，APR > 24% 的笔数 / 总笔数） |
+
+**PreAuditResult（record）**：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| probability | int | 预审通过概率（35-92） |
+| suggestions | List<String> | 个性化建议（最多 3 条） |
+
+**算法步骤**：
+
+```
+Step 1: probability = baseProbability (50)
+
+Step 2: SCORE 维度
+  从高到低遍历 thresholds，找到第一个 score >= threshold.min 的条目
+  probability += delta
+
+Step 3: DIR 维度
+  从低到高遍历 thresholds，找到第一个 debtIncomeRatio <= threshold.max 的条目
+  probability += delta
+
+Step 4: OVD 维度
+  IF hasOverdue: probability += hasOverdueDelta (-12)
+  ELSE:          probability += noOverdueDelta (+8)
+
+Step 5: CST 维度
+  从低到高遍历 thresholds，找到第一个 debtCount <= threshold.max 的条目
+  probability += delta
+
+Step 6: APR_HIGH 维度
+  从低到高遍历 thresholds，找到第一个 highAprRatio <= threshold.max 的条目
+  probability += delta
+
+Step 7: Clamp
+  probability = max(minProbability, min(maxProbability, probability))
+```
+
+**各维度默认阈值**：
+
+| 维度 | 阈值 | Delta |
+|------|------|-------|
+| SCORE | >= 80 | +20 |
+| SCORE | >= 60 | +10 |
+| SCORE | >= 40 | 0 |
+| SCORE | >= 0 | -10 |
+| DIR | <= 0.30 | +10 |
+| DIR | <= 0.50 | +5 |
+| DIR | <= 0.70 | 0 |
+| DIR | <= 1.00 | -5 |
+| DIR | <= 999 | -10 |
+| OVD | 无逾期 | +8 |
+| OVD | 有逾期 | -12 |
+| CST | <= 2 | +5 |
+| CST | <= 4 | 0 |
+| CST | <= 6 | -5 |
+| CST | <= 999 | -10 |
+| APR_HIGH | <= 0.00 | +5 |
+| APR_HIGH | <= 0.30 | 0 |
+| APR_HIGH | <= 0.60 | -3 |
+| APR_HIGH | <= 1.00 | -8 |
+
+### 建议生成
+
+按顺序匹配条件，取前 3 条命中的建议。所有条件均不命中时使用 `fallbackSuggestion`。
+
+**支持的条件标识**：
+
+| condition 值 | 匹配逻辑 |
+|-------------|---------|
+| `HAS_OVERDUE` | hasOverdue == true |
+| `HIGH_APR_RATIO_GT_30` | highAprRatio > 0.30 |
+| `DIR_GT_70` | debtIncomeRatio > 0.70 |
+| `DEBT_COUNT_GT_4` | debtCount > 4 |
+| `SCORE_GE_70` | score >= 70 |
+| `LOW_DIR_NO_OVERDUE` | debtIncomeRatio <= 0.50 AND !hasOverdue |
+| `SCORE_LT_50` | score < 50 |
+
+### PreAuditResponse（API 响应 DTO）
+
+```
+com.youhua.engine.dto.response.PreAuditResponse
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| probability | int | 预审通过概率百分比 |
+| suggestions | List<String> | 个性化建议列表 |
+
+使用 `@Builder` 构建，由 EngineController 调用 PreAuditEngine 后组装返回。
+
+### 降级策略
+
+配置文件加载失败时（`config == null`），返回默认结果：
+- probability = 50
+- suggestions = ["准备详细的收入证明和还款记录可提高通过率"]
+
+### 日志要求
+
+- DEBUG 级别记录每次估算的输入和输出：`score={}, dir={}, overdue={}, debtCount={}, highAprRatio={} → probability={}`
+- WARN 级别记录配置加载失败
+- 不得在日志中输出任何用户身份信息
+
+### 前端对等实现
+
+`youhuajia-app/src/pages/page8-action-layers/preaudit.js` 导出 `estimatePreAudit()` 函数，使用与后端完全相同的规则配置常量。前端版本用于 Page 8 第三层即时展示预审结果，无需等待网络请求。
+
+```javascript
+export function estimatePreAudit({ score, monthlyPayment, monthlyIncome, debts })
+// 返回 { probability: number, suggestions: string[] }
+```
+
+前端额外负责从 debts 列表中派生 `hasOverdue`、`debtIncomeRatio`、`highAprRatio` 等输入参数。
+
+---
+
+## 附录：四引擎协作流程
 
 ```
 用户触发画像计算
@@ -719,6 +942,20 @@ ScoreRecordService.recordScore() -- 持久化评分记录 + 计算 delta
   |
   v
 返回 {ruleWarnings, aprResults, scoreResult} 给上层 Service
+
+---
+
+用户进入 Page 8 第三层（预审）
+  |
+  v
+PreAuditEngine.estimate(input)
+  |-- 从 scoreResult + financeProfile 构造 PreAuditInput
+  |-- 加载 preaudit.meta.yml 规则
+  |-- 五维度加减分 → 概率
+  |-- 条件匹配 → 个性化建议
+  |
+  v
+返回 PreAuditResponse { probability, suggestions }
 ```
 
 上层 Service（非本规范范围）负责：
@@ -729,3 +966,4 @@ ScoreRecordService.recordScore() -- 持久化评分记录 + 计算 delta
 5. 构造 ScoreInput 调用 ScoringEngine.score()
 6. 调用 ScoreRecordService.recordScore() 记录评分
 7. 组装最终画像结果并持久化
+8. Page 8 第三层：构造 PreAuditInput 调用 PreAuditEngine.estimate() 返回预审结果
