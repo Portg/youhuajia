@@ -1,0 +1,247 @@
+# state-machines.yaml — 状态机形式化定义
+# AI 生成状态流转逻辑时必须严格遵循本文件，不得自行添加状态或转换路径。
+
+---
+
+# ============================================================
+# 1. 债务录入状态机
+# ============================================================
+debt_entry:
+  name: "债务录入流程"
+  initial_state: DRAFT
+  
+  states:
+    DRAFT:
+      description: "草稿，用户正在填写"
+      transitions:
+        - event: SUBMIT
+          target: SUBMITTED
+          guard: "principal > 0 AND loanDays > 0 AND creditor NOT EMPTY"
+          action: "validateBasicFields()"
+
+    SUBMITTED:
+      description: "已提交，等待处理"
+      transitions:
+        - event: START_OCR
+          target: OCR_PROCESSING
+          guard: "sourceType == OCR AND fileUrl NOT EMPTY"
+          action: "dispatchOcrTask()"
+        - event: MANUAL_CONFIRM
+          target: CONFIRMED
+          guard: "sourceType == MANUAL AND allRequiredFieldsFilled()"
+          action: "calculateApr()"
+
+    OCR_PROCESSING:
+      description: "OCR 识别中"
+      transitions:
+        - event: OCR_SUCCESS
+          target: PENDING_CONFIRM
+          guard: "confidenceScore >= 0"
+          action: "fillExtractedFields()"
+        - event: OCR_FAIL
+          target: OCR_FAILED
+          action: "logOcrError()"
+      timeout:
+        duration: 60s
+        target: OCR_FAILED
+        action: "logTimeout()"
+
+    PENDING_CONFIRM:
+      description: "OCR 识别完成，等待用户确认/修正"
+      transitions:
+        - event: USER_CONFIRM
+          target: CONFIRMED
+          action: "calculateApr(), mergeUserCorrections()"
+        - event: USER_REJECT
+          target: DRAFT
+          action: "clearOcrFields()"
+
+    CONFIRMED:
+      description: "已确认，数据有效"
+      transitions:
+        - event: INCLUDE_IN_PROFILE
+          target: IN_PROFILE
+          action: "triggerProfileRecalculation()"
+        - event: USER_EDIT
+          target: DRAFT
+          action: "clearCalculatedFields()"
+
+    IN_PROFILE:
+      description: "已纳入画像计算"
+      transitions:
+        - event: USER_EDIT
+          target: DRAFT
+          action: "triggerProfileRecalculation()"  # 先移出画像再编辑
+        - event: USER_DELETE
+          target: DELETED
+          action: "triggerProfileRecalculation()"
+
+    OCR_FAILED:
+      description: "OCR 识别失败"
+      transitions:
+        - event: RETRY_OCR
+          target: OCR_PROCESSING
+          guard: "retryCount < 3"
+          action: "incrementRetryCount(), dispatchOcrTask()"
+        - event: SWITCH_TO_MANUAL
+          target: DRAFT
+          action: "setSourceType(MANUAL)"
+
+    DELETED:
+      description: "已删除（逻辑删除）"
+      terminal: true
+
+
+# ============================================================
+# 2. 财务画像生成状态机
+# ============================================================
+profile_generation:
+  name: "画像生成流程"
+  initial_state: IDLE
+
+  states:
+    IDLE:
+      description: "空闲，等待触发"
+      transitions:
+        - event: TRIGGER_CALCULATE
+          target: VALIDATING
+          guard: "user has at least 1 CONFIRMED or IN_PROFILE debt"
+          action: "collectDebtData()"
+
+    VALIDATING:
+      description: "数据校验中"
+      transitions:
+        - event: VALIDATION_PASS
+          target: CALCULATING
+          action: "startCalculation()"
+        - event: VALIDATION_FAIL
+          target: FAILED
+          action: "logValidationErrors()"
+
+    CALCULATING:
+      description: "计算中（APR + 加权利率 + 评分）"
+      transitions:
+        - event: CALCULATION_COMPLETE
+          target: GENERATING_SUGGESTION
+          action: "saveProfileSnapshot()"
+        - event: CALCULATION_ERROR
+          target: FAILED
+          action: "logCalculationError()"
+
+    GENERATING_SUGGESTION:
+      description: "AI 生成优化建议中"
+      transitions:
+        - event: SUGGESTION_READY
+          target: COMPLETED
+          action: "saveReport()"
+        - event: SUGGESTION_FAIL
+          target: COMPLETED_WITHOUT_AI
+          action: "logAiError(), saveReportWithoutSuggestion()"
+      timeout:
+        duration: 30s
+        target: COMPLETED_WITHOUT_AI
+        action: "logAiTimeout()"
+
+    COMPLETED:
+      description: "生成完成（含AI建议）"
+      terminal: true
+
+    COMPLETED_WITHOUT_AI:
+      description: "生成完成（AI建议失败，仅展示数据+评分）"
+      terminal: true
+
+    FAILED:
+      description: "生成失败"
+      transitions:
+        - event: RETRY
+          target: VALIDATING
+          guard: "retryCount < 3"
+          action: "incrementRetryCount()"
+
+
+# ============================================================
+# 3. OCR 任务状态机
+# ============================================================
+ocr_task:
+  name: "OCR 识别任务"
+  initial_state: PENDING
+
+  states:
+    PENDING:
+      description: "等待处理"
+      transitions:
+        - event: START_PROCESS
+          target: PROCESSING
+          action: "callDeepSeekOcr()"
+
+    PROCESSING:
+      description: "识别处理中"
+      transitions:
+        - event: EXTRACT_SUCCESS
+          target: SUCCESS
+          guard: "extractedFields NOT EMPTY"
+          action: "saveExtractedFields()"
+        - event: EXTRACT_FAIL
+          target: FAILED
+          action: "saveErrorMessage()"
+      timeout:
+        duration: 60s
+        target: FAILED
+        action: "saveTimeoutError()"
+
+    SUCCESS:
+      description: "识别成功"
+      terminal: true
+
+    FAILED:
+      description: "识别失败"
+      transitions:
+        - event: RETRY
+          target: PENDING
+          guard: "retryCount < 3"
+          action: "incrementRetryCount()"
+
+
+# ============================================================
+# 4. 用户账户状态机
+# ============================================================
+user_account:
+  name: "用户账户状态"
+  initial_state: ACTIVE
+
+  states:
+    ACTIVE:
+      description: "正常使用"
+      transitions:
+        - event: FREEZE
+          target: FROZEN
+          guard: "operatorRole == ADMIN"
+          action: "logFreeze()"
+        - event: CANCEL
+          target: CANCELLING
+          action: "startCancellationCountdown(30days)"
+
+    FROZEN:
+      description: "已冻结"
+      transitions:
+        - event: UNFREEZE
+          target: ACTIVE
+          guard: "operatorRole == ADMIN"
+          action: "logUnfreeze()"
+        - event: CANCEL
+          target: CANCELLING
+
+    CANCELLING:
+      description: "注销冷静期（30天）"
+      transitions:
+        - event: REACTIVATE
+          target: ACTIVE
+          guard: "within 30 days"
+          action: "cancelCancellation()"
+        - event: EXPIRY
+          target: CANCELLED
+          action: "deleteUserData()"
+
+    CANCELLED:
+      description: "已注销，数据已删除"
+      terminal: true

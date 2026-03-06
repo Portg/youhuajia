@@ -1,0 +1,125 @@
+@use './variables.scss' as *;
+
+// ============================================
+// Mixins — 2026 Edition
+// ============================================
+
+// ---- 毛玻璃卡片 ----
+@mixin glass-card {
+  background: $surface;
+  border-radius: $radius-lg;
+  border: 1rpx solid $surface-glass-border;
+  box-shadow: $shadow-md;
+}
+
+// ---- 实底卡片 ----
+@mixin card {
+  background: $surface;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  box-shadow: $shadow-sm;
+}
+
+// ---- 悬浮卡片（强调） ----
+@mixin card-elevated {
+  background: $surface-elevated;
+  border-radius: $radius-xl;
+  padding: $spacing-lg;
+  box-shadow: $shadow-lg;
+}
+
+// ---- 主色渐变 ----
+@mixin primary-gradient {
+  background: $primary-gradient;
+}
+
+// ---- 文字截断 ----
+@mixin text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// ---- Flex 居中 ----
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// ---- 页面安全内边距 ----
+@mixin page-padding {
+  padding: $spacing-lg $spacing-xl 0;
+}
+
+// ---- 页面背景渐变 ----
+@mixin page-bg {
+  background: linear-gradient(168deg, #F0F4FA 0%, #FAF8F5 35%, #F5F7FA 100%);
+  min-height: 100vh;
+}
+
+// ---- 弹性按压动效 ----
+@mixin press-effect {
+  transition: transform $transition-fast, opacity $transition-fast;
+
+  &:active {
+    transform: scale(0.97);
+    opacity: 0.88;
+  }
+}
+
+// ---- 底部悬浮栏 ----
+@mixin bottom-bar {
+  background: $surface;
+  border-top: 1rpx solid $divider-light;
+  padding: $spacing-md $spacing-xl;
+  padding-bottom: calc(#{$spacing-md} + env(safe-area-inset-bottom));
+}
+
+// ---- 标签/徽章 ----
+@mixin badge($bg, $color) {
+  display: inline-flex;
+  align-items: center;
+  padding: 6rpx 18rpx;
+  border-radius: $radius-pill;
+  font-size: $font-xs;
+  font-weight: $weight-semibold;
+  background: $bg;
+  color: $color;
+}
+
+// ---- 数据高亮数字 ----
+@mixin metric-number($color: $text-primary) {
+  font-size: $font-xxl;
+  font-weight: $weight-black;
+  color: $color;
+  letter-spacing: -1rpx;
+  font-variant-numeric: tabular-nums;
+}
+
+// ---- 渐变文字 ----
+@mixin gradient-text($gradient) {
+  background: $gradient;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+// ---- 输入框 ----
+@mixin input-field {
+  width: 100%;
+  height: 88rpx;
+  background: $background;
+  border: 2rpx solid $divider;
+  border-radius: $radius-md;
+  padding: 0 $spacing-md;
+  font-size: $font-md;
+  color: $text-primary;
+  box-sizing: border-box;
+  transition: border-color $transition-fast, box-shadow $transition-fast;
+
+  &:focus {
+    border-color: $primary;
+    box-shadow: 0 0 0 4rpx $primary-glass;
+  }
+}

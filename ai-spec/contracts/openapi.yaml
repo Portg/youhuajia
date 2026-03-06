@@ -1,0 +1,1291 @@
+openapi: 3.0.3
+info:
+  title: 优化家 MVP API
+  description: |
+    债务优化决策引擎 - MVP 阶段接口规范
+    
+    设计规范遵循 Google API Design Guide (https://google.aip.dev)：
+    - 资源导向设计（AIP-121）
+    - 标准方法 List/Get/Create/Update/Delete（AIP-130~135）
+    - 自定义方法使用 :action 语法（AIP-136）
+    - 字段名 camelCase（AIP-140）
+    - 分页使用 pageToken（AIP-158）
+    - 部分更新使用 PATCH + updateMask（AIP-134）
+  version: 1.0.0
+  contact:
+    name: YouHuaJia Team
+
+servers:
+  - url: /api/v1
+    description: API Base Path
+
+tags:
+  - name: auth
+    description: 认证
+  - name: debts
+    description: 债务资源
+  - name: finance-profiles
+    description: 财务画像资源
+  - name: incomes
+    description: 收入资源
+  - name: ocr-tasks
+    description: OCR 识别任务资源
+  - name: reports
+    description: 优化报告资源
+  - name: engine
+    description: 计算引擎（无状态工具方法）
+  - name: scoring-strategies
+    description: 评分策略管理
+
+# ============================================================
+# 通用组件
+# ============================================================
+components:
+
+  schemas:
+
+    # ---------- 统一错误响应（参考 google.rpc.Status）----------
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, status]
+          properties:
+            code:
+              type: integer
+              description: "业务错误码，如 402001"
+            message:
+              type: string
+              description: 人类可读的错误信息
+            status:
+              type: string
+              description: "错误状态枚举：INVALID_ARGUMENT / NOT_FOUND / ALREADY_EXISTS / FAILED_PRECONDITION / RESOURCE_EXHAUSTED / INTERNAL"
+            details:
+              type: array
+              items:
+                type: object
+              description: 附加错误详情
+        traceId:
+          type: string
+
+    # ---------- Auth ----------
+    SendSmsRequest:
+      type: object
+      required: [phone]
+      properties:
+        phone:
+          type: string
+          pattern: "^1[3-9]\\d{9}$"
+
+    LoginRequest:
+      type: object
+      required: [phone, smsCode]
+      properties:
+        phone:
+          type: string
+        smsCode:
+          type: string
+          minLength: 6
+          maxLength: 6
+        deviceFingerprint:
+          type: string
+
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+          description: 秒
+        userId:
+          type: string
+          description: "资源名称格式: users/{userId}"
+        newUser:
+          type: boolean
+          description: 是否新注册用户（布尔字段不加 is 前缀，AIP-140）
+
+    # ---------- Debt 资源 ----------
+    Debt:
+      type: object
+      description: 债务资源的完整表示
+      properties:
+        name:
+          type: string
+          description: "资源名称，格式: debts/{debtId}"
+          example: "debts/198234567890"
+          readOnly: true
+        creditor:
+          type: string
+          description: 债权机构
+        debtType:
+          type: string
+          enum: [CREDIT_CARD, CONSUMER_LOAN, BUSINESS_LOAN, MORTGAGE, OTHER]
+        principal:
+          type: number
+          format: decimal
+          description: 本金
+        totalRepayment:
+          type: number
+          format: decimal
+          description: 总还款额
+        nominalRate:
+          type: number
+          format: decimal
+          description: 名义利率（小数形式）
+        apr:
+          type: number
+          format: decimal
+          description: 实际年化利率（百分比形式，系统计算）
+          readOnly: true
+        loanDays:
+          type: integer
+          description: 借款天数
+        monthlyPayment:
+          type: number
+          format: decimal
+        remainingPrincipal:
+          type: number
+          format: decimal
+        remainingPeriods:
+          type: integer
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        overdueStatus:
+          type: string
+          enum: [NORMAL, OVERDUE_30, OVERDUE_60, OVERDUE_90_PLUS]
+          default: NORMAL
+        overdueDays:
+          type: integer
+          default: 0
+        sourceType:
+          type: string
+          enum: [MANUAL, OCR, BANK_API]
+          readOnly: true
+        confidenceScore:
+          type: number
+          description: OCR 置信度（0-100）
+          readOnly: true
+        status:
+          type: string
+          enum: [DRAFT, SUBMITTED, OCR_PROCESSING, PENDING_CONFIRM, CONFIRMED, IN_PROFILE]
+          readOnly: true
+        remark:
+          type: string
+          maxLength: 500
+        createTime:
+          type: string
+          format: date-time
+          readOnly: true
+        updateTime:
+          type: string
+          format: date-time
+          readOnly: true
+        version:
+          type: integer
+          readOnly: true
+
+    CreateDebtRequest:
+      type: object
+      required: [debt]
+      properties:
+        requestId:
+          type: string
+          format: uuid
+          description: 幂等键（AIP-155），防重复提交
+        debt:
+          type: object
+          description: 要创建的债务数据
+          required: [creditor, debtType, principal, totalRepayment, loanDays]
+          properties:
+            creditor:
+              type: string
+              minLength: 1
+              maxLength: 100
+            debtType:
+              type: string
+              enum: [CREDIT_CARD, CONSUMER_LOAN, BUSINESS_LOAN, MORTGAGE, OTHER]
+            principal:
+              type: number
+              format: decimal
+              minimum: 0.01
+            totalRepayment:
+              type: number
+              format: decimal
+              minimum: 0.01
+            nominalRate:
+              type: number
+              format: decimal
+            loanDays:
+              type: integer
+              minimum: 1
+            monthlyPayment:
+              type: number
+              format: decimal
+            remainingPrincipal:
+              type: number
+              format: decimal
+            remainingPeriods:
+              type: integer
+            startDate:
+              type: string
+              format: date
+            endDate:
+              type: string
+              format: date
+            overdueStatus:
+              type: string
+              enum: [NORMAL, OVERDUE_30, OVERDUE_60, OVERDUE_90_PLUS]
+              default: NORMAL
+            overdueDays:
+              type: integer
+              default: 0
+            remark:
+              type: string
+              maxLength: 500
+
+    UpdateDebtRequest:
+      type: object
+      required: [debt, updateMask]
+      properties:
+        debt:
+          $ref: '#/components/schemas/Debt'
+        updateMask:
+          type: string
+          description: "FieldMask，逗号分隔的字段路径，如 'creditor,principal,loanDays'（AIP-134）"
+          example: "creditor,principal,totalRepayment,loanDays"
+
+    ListDebtsResponse:
+      type: object
+      properties:
+        debts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Debt'
+        nextPageToken:
+          type: string
+          description: 下一页游标，为空则无更多数据
+        totalSize:
+          type: integer
+          description: 符合条件的总数（可选）
+        summary:
+          type: object
+          properties:
+            totalCount:
+              type: integer
+            totalPrincipal:
+              type: number
+            totalMonthlyPayment:
+              type: number
+            confirmedCount:
+              type: integer
+
+    # ---------- Income 资源 ----------
+    Income:
+      type: object
+      properties:
+        name:
+          type: string
+          description: "资源名称: incomes/{incomeId}"
+          readOnly: true
+        incomeType:
+          type: string
+          enum: [SALARY, BUSINESS, FREELANCE, INVESTMENT, OTHER]
+        amount:
+          type: number
+          format: decimal
+          minimum: 0
+        primary:
+          type: boolean
+          description: 是否主要收入（布尔不加 is 前缀）
+        verificationStatus:
+          type: string
+          enum: [UNVERIFIED, VERIFIED]
+          readOnly: true
+
+    BatchCreateIncomesRequest:
+      type: object
+      required: [incomes]
+      properties:
+        incomes:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Income'
+
+    # ---------- FinanceProfile 资源 ----------
+    FinanceProfile:
+      type: object
+      properties:
+        name:
+          type: string
+          description: "资源名称: users/{userId}/finance-profile"
+          readOnly: true
+        totalDebt:
+          type: number
+        debtCount:
+          type: integer
+        weightedApr:
+          type: number
+          description: 加权年化利率（百分比）
+        monthlyPayment:
+          type: number
+        monthlyIncome:
+          type: number
+        debtIncomeRatio:
+          type: number
+        liquidityScore:
+          type: number
+        restructureScore:
+          type: number
+          description: 重组评分（0-100）
+        riskLevel:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        scoreDetail:
+          type: object
+          description: 评分各维度明细
+        lastCalculateTime:
+          type: string
+          format: date-time
+          readOnly: true
+
+    # ---------- OcrTask 资源 ----------
+    OcrTask:
+      type: object
+      properties:
+        name:
+          type: string
+          description: "资源名称: ocr-tasks/{taskId}"
+          readOnly: true
+        fileType:
+          type: string
+          enum: [CONTRACT, BILL, SMS_SCREENSHOT]
+        status:
+          type: string
+          enum: [PENDING, PROCESSING, SUCCESS, FAILED]
+          readOnly: true
+        confidenceScore:
+          type: number
+          readOnly: true
+        extractedFields:
+          type: object
+          description: 提取的结构化字段及置信度
+          readOnly: true
+        errorMessage:
+          type: string
+          readOnly: true
+        relatedDebt:
+          type: string
+          description: "关联的债务资源名称: debts/{debtId}"
+          readOnly: true
+
+    ConfirmOcrTaskRequest:
+      type: object
+      properties:
+        corrections:
+          type: object
+          description: 用户修正的字段 key-value
+          additionalProperties:
+            type: string
+
+    # ---------- Report 资源 ----------
+    Report:
+      type: object
+      properties:
+        name:
+          type: string
+          description: "资源名称: reports/{reportId}"
+          readOnly: true
+        profileSnapshot:
+          $ref: '#/components/schemas/FinanceProfile'
+        priorityList:
+          type: array
+          items:
+            type: object
+            properties:
+              rank:
+                type: integer
+              debt:
+                type: string
+                description: "债务资源名称: debts/{debtId}"
+              creditor:
+                type: string
+              apr:
+                type: number
+              reason:
+                type: string
+        actionPlan:
+          type: object
+          description: 90天行动计划
+        aiSummary:
+          type: string
+          description: AI 生成的文字建议
+        riskWarnings:
+          type: array
+          items:
+            type: string
+        reportVersion:
+          type: integer
+        createTime:
+          type: string
+          format: date-time
+          readOnly: true
+
+    ListReportsResponse:
+      type: object
+      properties:
+        reports:
+          type: array
+          items:
+            $ref: '#/components/schemas/Report'
+        nextPageToken:
+          type: string
+
+    # ---------- Engine（无状态计算工具）----------
+    CalculateAprRequest:
+      type: object
+      required: [principal, totalRepayment, loanDays]
+      properties:
+        principal:
+          type: number
+          minimum: 0.01
+        totalRepayment:
+          type: number
+          minimum: 0.01
+        loanDays:
+          type: integer
+          minimum: 1
+
+    CalculateAprResponse:
+      type: object
+      properties:
+        apr:
+          type: number
+          description: 年化利率（百分比）
+        dailyRate:
+          type: number
+        totalInterest:
+          type: number
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []
+
+# ============================================================
+# 路径定义（资源导向 + 标准方法 + 自定义方法）
+# ============================================================
+paths:
+
+  # ===== Auth（非资源型，独立路径）=====
+  /auth/sms:send:
+    post:
+      tags: [auth]
+      summary: 发送验证码
+      operationId: sendSms
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendSmsRequest'
+      responses:
+        '200':
+          description: 发送成功
+        '429':
+          description: 发送频率过高
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/sessions:
+    post:
+      tags: [auth]
+      summary: 验证码登录（创建会话，自动注册）
+      operationId: createSession
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: 验证码错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/sessions:refresh:
+    post:
+      tags: [auth]
+      summary: 刷新 Token
+      operationId: refreshSession
+      responses:
+        '200':
+          description: 刷新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+
+  /auth/sessions:revoke:
+    post:
+      tags: [auth]
+      summary: 退出登录（撤销会话）
+      operationId: revokeSession
+      responses:
+        '200':
+          description: 已退出
+
+  # ===== Debts 资源（标准方法）=====
+  /debts:
+    get:
+      tags: [debts]
+      summary: List - 查询债务列表
+      operationId: listDebts
+      parameters:
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+          description: 每页数量
+        - name: pageToken
+          in: query
+          schema:
+            type: string
+          description: 分页游标（不透明令牌）
+        - name: filter
+          in: query
+          schema:
+            type: string
+          description: "过滤条件（AIP-160），如 'status=\"CONFIRMED\"' 或 'debtType=\"CREDIT_CARD\"'"
+        - name: orderBy
+          in: query
+          schema:
+            type: string
+            default: "createTime desc"
+          description: "排序（AIP-132），如 'apr desc' 或 'createTime desc'"
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListDebtsResponse'
+
+    post:
+      tags: [debts]
+      summary: Create - 创建债务（草稿状态）
+      operationId: createDebt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDebtRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Debt'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 重复请求（requestId 冲突）
+
+  /debts/{debtId}:
+    get:
+      tags: [debts]
+      summary: Get - 查询债务详情
+      operationId: getDebt
+      parameters:
+        - name: debtId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Debt'
+        '404':
+          description: 不存在
+
+    patch:
+      tags: [debts]
+      summary: Update - 部分更新债务（PATCH + updateMask，AIP-134）
+      operationId: updateDebt
+      parameters:
+        - name: debtId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDebtRequest'
+      responses:
+        '200':
+          description: 更新成功，返回完整资源
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Debt'
+        '409':
+          description: 版本冲突（乐观锁）
+
+    delete:
+      tags: [debts]
+      summary: Delete - 删除债务（逻辑删除）
+      operationId: deleteDebt
+      parameters:
+        - name: debtId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 删除成功
+
+  # ===== Debts 自定义方法（:action 语法，AIP-136）=====
+  /debts/{debtId}:confirm:
+    post:
+      tags: [debts]
+      summary: 确认债务数据（触发 APR 计算）
+      operationId: confirmDebt
+      parameters:
+        - name: debtId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 确认成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Debt'
+        '400':
+          description: 状态不允许确认
+
+  /debts/{debtId}:includeInProfile:
+    post:
+      tags: [debts]
+      summary: 将债务纳入画像计算
+      operationId: includeDebtInProfile
+      parameters:
+        - name: debtId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 已纳入画像
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Debt'
+
+  # ===== OCR Tasks 资源 =====
+  /ocr-tasks:
+    post:
+      tags: [ocr-tasks]
+      summary: Create - 上传文件创建 OCR 任务
+      operationId: createOcrTask
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, fileType]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                fileType:
+                  type: string
+                  enum: [CONTRACT, BILL, SMS_SCREENSHOT]
+      responses:
+        '200':
+          description: 任务创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OcrTask'
+
+  /ocr-tasks/{taskId}:
+    get:
+      tags: [ocr-tasks]
+      summary: Get - 查询 OCR 任务结果
+      operationId: getOcrTask
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 任务详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OcrTask'
+
+  /ocr-tasks/{taskId}:confirm:
+    post:
+      tags: [ocr-tasks]
+      summary: 确认 OCR 结果并生成债务记录
+      operationId: confirmOcrTask
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmOcrTaskRequest'
+      responses:
+        '200':
+          description: 确认成功，返回关联的债务资源
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Debt'
+
+  /ocr-tasks/{taskId}:retry:
+    post:
+      tags: [ocr-tasks]
+      summary: 重试失败的 OCR 任务
+      operationId: retryOcrTask
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 重试已触发
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OcrTask'
+        '400':
+          description: 重试次数超限
+
+  # ===== Incomes 资源 =====
+  /incomes:batchCreate:
+    post:
+      tags: [incomes]
+      summary: 批量创建收入记录（自定义方法，AIP-136）
+      operationId: batchCreateIncomes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchCreateIncomesRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  incomes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Income'
+
+  # ===== Finance Profiles 资源（单例资源）=====
+  /finance-profiles/me:
+    get:
+      tags: [finance-profiles]
+      summary: Get - 获取当前用户的财务画像
+      operationId: getFinanceProfile
+      responses:
+        '200':
+          description: 当前画像
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinanceProfile'
+        '404':
+          description: 尚未生成画像
+
+  /finance-profiles/me:calculate:
+    post:
+      tags: [finance-profiles]
+      summary: 触发画像重新计算（自定义方法）
+      operationId: calculateFinanceProfile
+      responses:
+        '200':
+          description: 计算完成
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinanceProfile'
+        '400':
+          description: 无可用债务数据
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ===== Engine（无状态工具方法，非资源型）=====
+  /engine/apr:calculate:
+    post:
+      tags: [engine]
+      summary: 单笔 APR 试算（不持久化）
+      operationId: calculateApr
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalculateAprRequest'
+      responses:
+        '200':
+          description: 计算结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculateAprResponse'
+        '400':
+          description: 参数错误
+
+  /engine/pressure:assess:
+    post:
+      tags: [engine]
+      summary: 快速压力检测（Page 2，无需登录，不持久化）
+      description: |
+        用户心理路径 Page 2：轻量录入阶段。
+        只需月供和收入两个数据，立即返回压力指数。
+        不保存任何数据，降低用户戒备心理。
+      operationId: assessPressure
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [monthlyPayment, monthlyIncome]
+              properties:
+                monthlyPayment:
+                  type: number
+                  minimum: 0
+                  description: 每月总还款（支持模糊值）
+                monthlyIncome:
+                  type: number
+                  minimum: 0
+                  description: 月收入（支持模糊值）
+      responses:
+        '200':
+          description: 压力指数
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pressureIndex:
+                    type: number
+                    description: 压力指数 0-100
+                  level:
+                    type: string
+                    enum: [HEALTHY, MODERATE, HEAVY, SEVERE]
+                    description: "文案映射：健康/偏重/较重/需关注（注意不用'危险'等词）"
+                  ratio:
+                    type: number
+                    description: 月供收入比
+                  hint:
+                    type: string
+                    description: "引导语，如：'录入具体债务，获得精确分析'"
+
+  /engine/rate:simulate:
+    post:
+      tags: [engine]
+      summary: 利率模拟器（Page 6，无需持久化）
+      description: |
+        用户心理路径 Page 6：滑动利率模拟。
+        基于当前债务数据，模拟不同利率下的月供变化和三年节省总额。
+      operationId: simulateRate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentWeightedApr, targetApr, totalPrincipal, avgLoanDays]
+              properties:
+                currentWeightedApr:
+                  type: number
+                  description: 当前加权 APR（百分比）
+                targetApr:
+                  type: number
+                  description: 用户滑动到的目标 APR（百分比）
+                totalPrincipal:
+                  type: number
+                  description: 总本金
+                avgLoanDays:
+                  type: integer
+                  description: 平均借款天数
+                monthlyIncome:
+                  type: number
+                  description: 月收入（可选，用于计算比例变化）
+      responses:
+        '200':
+          description: 模拟结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  currentMonthlyPayment:
+                    type: number
+                  targetMonthlyPayment:
+                    type: number
+                  monthlySaving:
+                    type: number
+                  threeYearSaving:
+                    type: number
+                  currentIncomeRatio:
+                    type: number
+                    description: 当前月供收入比
+                  targetIncomeRatio:
+                    type: number
+                    description: 目标月供收入比
+                  disclaimer:
+                    type: string
+                    description: "固定值：'实际利率取决于个人信用状况和金融机构审核'"
+
+  # ===== Engine - What-if 模拟 =====
+  /engine/score:simulate:
+    post:
+      tags: [engine]
+      summary: What-if 评分模拟（模拟还清/减少本金/置换利率后的分数变化）
+      operationId: simulateScore
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              properties:
+                userId:
+                  type: integer
+                  format: int64
+                actions:
+                  type: array
+                  items:
+                    type: object
+                    required: [type, debtId]
+                    properties:
+                      type:
+                        type: string
+                        enum: [PAYOFF, REDUCE_PRINCIPAL, REPLACE_RATE]
+                      debtId:
+                        type: integer
+                        format: int64
+                      value:
+                        type: number
+                        description: 减少金额或新利率值
+      responses:
+        '200':
+          description: 模拟结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  current:
+                    type: object
+                    properties:
+                      finalScore:
+                        type: number
+                      riskLevel:
+                        type: string
+                      recommendation:
+                        type: string
+                  simulated:
+                    type: object
+                    properties:
+                      finalScore:
+                        type: number
+                      riskLevel:
+                        type: string
+                      recommendation:
+                        type: string
+                  dimensionDeltas:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        label:
+                          type: string
+                        currentWeightedScore:
+                          type: number
+                        simulatedWeightedScore:
+                          type: number
+                        delta:
+                          type: number
+
+  # ===== Scoring Strategies 资源 =====
+  /scoring-strategies:
+    get:
+      tags: [scoring-strategies]
+      summary: 列出所有已加载的评分策略
+      operationId: listStrategies
+      responses:
+        '200':
+          description: 策略列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    segment:
+                      type: string
+                    strategyName:
+                      type: string
+                    version:
+                      type: string
+                    description:
+                      type: string
+                    createdBy:
+                      type: string
+                    createdAt:
+                      type: string
+                    riskLevelBoundaries:
+                      type: array
+                      items:
+                        type: number
+                    restructureThreshold:
+                      type: number
+
+  /scoring-strategies/{segment}:
+    get:
+      tags: [scoring-strategies]
+      summary: 获取指定分群的策略详情
+      operationId: getStrategy
+      parameters:
+        - name: segment
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [DEFAULT, HIGH_DEBT, MORTGAGE_HEAVY, YOUNG_BORROWER]
+      responses:
+        '200':
+          description: 策略详情
+        '404':
+          description: 策略不存在
+
+  /scoring-strategies:reload:
+    post:
+      tags: [scoring-strategies]
+      summary: 强制刷新所有策略（重新加载 PMML 文件）
+      operationId: reloadStrategies
+      responses:
+        '200':
+          description: 刷新成功，返回重新加载后的策略列表
+
+  /scoring-strategies:compare:
+    post:
+      tags: [scoring-strategies]
+      summary: 对比两个策略对同一用户的评分差异
+      operationId: compareStrategies
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, segmentA, segmentB]
+              properties:
+                userId:
+                  type: integer
+                  format: int64
+                segmentA:
+                  type: string
+                segmentB:
+                  type: string
+      responses:
+        '200':
+          description: 对比结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  strategyA:
+                    type: object
+                    properties:
+                      segment:
+                        type: string
+                      strategyName:
+                        type: string
+                      version:
+                        type: string
+                      finalScore:
+                        type: number
+                      riskLevel:
+                        type: string
+                      recommendation:
+                        type: string
+                  strategyB:
+                    type: object
+                    properties:
+                      segment:
+                        type: string
+                      strategyName:
+                        type: string
+                      version:
+                        type: string
+                      finalScore:
+                        type: number
+                      riskLevel:
+                        type: string
+                      recommendation:
+                        type: string
+                  scoreDelta:
+                    type: number
+                    description: 分数差值 (A - B)
+
+  # ===== Reports 资源 =====
+  /reports:
+    get:
+      tags: [reports]
+      summary: List - 报告历史列表
+      operationId: listReports
+      parameters:
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 10
+            maximum: 50
+        - name: pageToken
+          in: query
+          schema:
+            type: string
+        - name: orderBy
+          in: query
+          schema:
+            type: string
+            default: "createTime desc"
+      responses:
+        '200':
+          description: 报告列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListReportsResponse'
+
+  /reports:generate:
+    post:
+      tags: [reports]
+      summary: 生成优化报告（自定义方法，基于当前画像）
+      operationId: generateReport
+      responses:
+        '200':
+          description: 报告生成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          description: 画像不完整
+
+  /reports/{reportId}:
+    get:
+      tags: [reports]
+      summary: Get - 获取报告详情
+      operationId: getReport
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 报告详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+
+  /reports/{reportId}:export:
+    get:
+      tags: [reports]
+      summary: 导出报告为 PDF（自定义方法）
+      operationId: exportReport
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: PDF 文件流
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary

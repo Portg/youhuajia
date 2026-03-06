@@ -1,0 +1,56 @@
+strategy_name: "房贷优化策略"
+segment: MORTGAGE_HEAVY
+description: "针对房贷为主用户（房贷占比>50%），侧重流动性缓冲和信用稳定度，对负债收入比更宽容"
+created_by: "系统"
+created_at: "2026-03-01"
+version: "1.0"
+
+risk_level_boundaries: [78, 58, 38]
+restructure_threshold: 58
+
+reason_code_messages:
+  DIR:
+    label: "负债收入比"
+    explain_template: "当前负债收入比 {value}，{level_desc}"
+    level_descriptions:
+      - { max: 0.40, desc: "财务状况健康，房贷压力可控" }
+      - { max: 0.60, desc: "房贷占比正常，注意控制其他消费贷" }
+      - { max: 0.80, desc: "总月供偏高，建议减少非房贷支出" }
+      - { max: 1.00, desc: "总月供过高，建议优化非房贷债务结构" }
+      - { max: 999, desc: "总月供严重超标，建议与债权方协商" }
+    improvement_tip: "优先清理非房贷类高息消费贷，保留低息房贷"
+  APR:
+    label: "综合利率"
+    explain_template: "当前加权利率 {value}%，{level_desc}"
+    level_descriptions:
+      - { max: 10, desc: "利率水平优秀，房贷利率控制良好" }
+      - { max: 18, desc: "利率水平正常" }
+      - { max: 24, desc: "利率偏高，可能受消费贷拉高" }
+      - { max: 36, desc: "利率较高，建议优化非房贷部分" }
+      - { max: 999, desc: "利率过高，非房贷部分需重点优化" }
+    improvement_tip: "房贷利率通常较低，重点优化消费贷和信用卡利率"
+  LIQ:
+    label: "流动性"
+    explain_template: "月收入与月供关系：{level_desc}"
+    level_descriptions:
+      - { max: 0, desc: "月供超过月收入，流动性紧张，需特别关注" }
+      - { max: 999, desc: "月收入覆盖月供，建议保留3-6个月应急资金" }
+    improvement_tip: "房贷是长期固定支出，建议保留充足应急资金缓冲"
+  OVD:
+    label: "逾期情况"
+    explain_template: "逾期 {value} 笔，{level_desc}"
+    level_descriptions:
+      - { max: 0, desc: "无逾期记录，信用良好" }
+      - { max: 1, desc: "有少量逾期，注意及时处理" }
+      - { max: 3, desc: "逾期笔数较多，影响信用评估" }
+      - { max: 999, desc: "逾期较严重，房贷逾期影响尤为严重" }
+    improvement_tip: "房贷逾期影响征信最大，务必优先确保房贷按时还款"
+  CST:
+    label: "信用稳定度"
+    explain_template: "负债 {value} 笔，{level_desc}"
+    level_descriptions:
+      - { max: 2, desc: "负债结构清晰，以房贷为主" }
+      - { max: 4, desc: "负债笔数适中，结构尚可" }
+      - { max: 6, desc: "非房贷借贷偏多，建议整合" }
+      - { max: 999, desc: "借贷笔数过多，建议清理小额消费贷" }
+    improvement_tip: "保持以房贷为主的简洁负债结构，减少零散消费贷"

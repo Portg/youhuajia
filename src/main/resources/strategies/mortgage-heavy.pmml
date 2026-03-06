@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PMML version="4.4" xmlns="http://www.dmg.org/PMML-4_4">
+  <Header description="优化家评分卡 - 房贷为主策略 v1.0">
+    <Application name="YouHuaJia" version="1.0"/>
+    <Timestamp>2026-03-01</Timestamp>
+  </Header>
+
+  <DataDictionary numberOfFields="8">
+    <DataField name="debtIncomeRatio" optype="continuous" dataType="double"/>
+    <DataField name="weightedApr" optype="continuous" dataType="double"/>
+    <DataField name="monthlyIncome" optype="continuous" dataType="double"/>
+    <DataField name="monthlyPayment" optype="continuous" dataType="double"/>
+    <DataField name="overdueCount" optype="continuous" dataType="integer"/>
+    <DataField name="maxOverdueDays" optype="continuous" dataType="integer"/>
+    <DataField name="debtCount" optype="continuous" dataType="integer"/>
+    <DataField name="avgLoanDays" optype="continuous" dataType="integer"/>
+  </DataDictionary>
+
+  <!-- 房贷为主策略：DIR 0.25（↓）, APR 0.25, LIQ 0.20（↑）, OVD 0.15（↓）, CST 0.15（↑） -->
+  <!-- 特点：房贷用户DIR天然偏高但稳定，重点看流动性缓冲和信用稳定度 -->
+  <Scorecard modelName="mortgage_heavy_strategy" functionName="regression"
+             initialScore="0" useReasonCodes="true"
+             reasonCodeAlgorithm="pointsAbove" baselineMethod="max">
+    <MiningSchema>
+      <MiningField name="debtIncomeRatio" invalidValueTreatment="asMissing"/>
+      <MiningField name="weightedApr" invalidValueTreatment="asMissing"/>
+      <MiningField name="monthlyIncome" invalidValueTreatment="asMissing"/>
+      <MiningField name="monthlyPayment"/>
+      <MiningField name="overdueCount"/>
+      <MiningField name="maxOverdueDays"/>
+      <MiningField name="debtCount"/>
+      <MiningField name="avgLoanDays"/>
+    </MiningSchema>
+
+    <Output>
+      <OutputField name="finalScore" feature="predictedValue" dataType="double"/>
+      <OutputField name="ReasonCode1" rank="1" feature="reasonCode" dataType="string"/>
+      <OutputField name="ReasonCode2" rank="2" feature="reasonCode" dataType="string"/>
+      <OutputField name="ReasonCode3" rank="3" feature="reasonCode" dataType="string"/>
+    </Output>
+
+    <LocalTransformations>
+      <DerivedField name="netCashflow" optype="continuous" dataType="double">
+        <Apply function="-">
+          <FieldRef field="monthlyIncome"/>
+          <FieldRef field="monthlyPayment"/>
+        </Apply>
+      </DerivedField>
+    </LocalTransformations>
+
+    <Characteristics>
+      <!-- DIR (weight=0.25): 降低权重，房贷用户DIR天然偏高 -->
+      <!-- 分段更宽容：0.40/0.60/0.80/1.00 -->
+      <!-- 原始分: 90/75/55/35/10, ×0.25 -->
+      <Characteristic name="debtIncomeRatioScore" reasonCode="DIR" baselineScore="22.5">
+        <Attribute partialScore="5">
+          <SimplePredicate field="debtIncomeRatio" operator="isMissing"/>
+        </Attribute>
+        <Attribute partialScore="22.5">
+          <SimplePredicate field="debtIncomeRatio" operator="lessOrEqual" value="0.40"/>
+        </Attribute>
+        <Attribute partialScore="18.75">
+          <SimplePredicate field="debtIncomeRatio" operator="lessOrEqual" value="0.60"/>
+        </Attribute>
+        <Attribute partialScore="13.75">
+          <SimplePredicate field="debtIncomeRatio" operator="lessOrEqual" value="0.80"/>
+        </Attribute>
+        <Attribute partialScore="8.75">
+          <SimplePredicate field="debtIncomeRatio" operator="lessOrEqual" value="1.00"/>
+        </Attribute>
+        <Attribute partialScore="2.5">
+          <True/>
+        </Attribute>
+      </Characteristic>
+
+      <!-- APR (weight=0.25): 同默认 -->
+      <Characteristic name="weightedAprScore" reasonCode="APR" baselineScore="22.5">
+        <Attribute partialScore="13.75">
+          <SimplePredicate field="weightedApr" operator="isMissing"/>
+        </Attribute>
+        <Attribute partialScore="22.5">
+          <SimplePredicate field="weightedApr" operator="lessOrEqual" value="10"/>
+        </Attribute>
+        <Attribute partialScore="18.75">
+          <SimplePredicate field="weightedApr" operator="lessOrEqual" value="18"/>
+        </Attribute>
+        <Attribute partialScore="13.75">
+          <SimplePredicate field="weightedApr" operator="lessOrEqual" value="24"/>
+        </Attribute>
+        <Attribute partialScore="8.75">
+          <SimplePredicate field="weightedApr" operator="lessOrEqual" value="36"/>
+        </Attribute>
+        <Attribute partialScore="3.75">
+          <True/>
+        </Attribute>
+      </Characteristic>
+
+      <!-- LIQ (weight=0.20): 提高权重，房贷用户流动性缓冲更关键 -->
+      <!-- 原始分: 60/40/30, ×0.20 -->
+      <Characteristic name="liquidityScore" reasonCode="LIQ" baselineScore="12">
+        <Attribute partialScore="8">
+          <SimplePredicate field="monthlyIncome" operator="isMissing"/>
+        </Attribute>
+        <Attribute partialScore="8">
+          <SimplePredicate field="monthlyIncome" operator="equal" value="0"/>
+        </Attribute>
+        <Attribute partialScore="12">
+          <SimplePredicate field="netCashflow" operator="greaterThan" value="0"/>
+        </Attribute>
+        <Attribute partialScore="6">
+          <True/>
+        </Attribute>
+      </Characteristic>
+
+      <!-- OVD (weight=0.15): 降低权重，房贷用户逾期概率低 -->
+      <!-- 原始分: 95/70/50/30/10, ×0.15 -->
+      <Characteristic name="overdueScore" reasonCode="OVD" baselineScore="14.25">
+        <Attribute partialScore="14.25">
+          <SimplePredicate field="overdueCount" operator="equal" value="0"/>
+        </Attribute>
+        <Attribute partialScore="10.5">
+          <CompoundPredicate booleanOperator="and">
+            <SimplePredicate field="overdueCount" operator="equal" value="1"/>
+            <SimplePredicate field="maxOverdueDays" operator="lessOrEqual" value="30"/>
+          </CompoundPredicate>
+        </Attribute>
+        <Attribute partialScore="7.5">
+          <CompoundPredicate booleanOperator="and">
+            <SimplePredicate field="overdueCount" operator="lessOrEqual" value="2"/>
+            <SimplePredicate field="maxOverdueDays" operator="lessOrEqual" value="60"/>
+          </CompoundPredicate>
+        </Attribute>
+        <Attribute partialScore="4.5">
+          <CompoundPredicate booleanOperator="and">
+            <SimplePredicate field="overdueCount" operator="lessOrEqual" value="3"/>
+            <SimplePredicate field="maxOverdueDays" operator="lessOrEqual" value="90"/>
+          </CompoundPredicate>
+        </Attribute>
+        <Attribute partialScore="1.5">
+          <True/>
+        </Attribute>
+      </Characteristic>
+
+      <!-- CST (weight=0.15): 提高权重，房贷用户借贷笔数少说明结构清晰 -->
+      <!-- 原始分: 80/60/40/20, ×0.15 -->
+      <Characteristic name="creditStabilityScore" reasonCode="CST" baselineScore="12">
+        <Attribute partialScore="12">
+          <CompoundPredicate booleanOperator="and">
+            <SimplePredicate field="debtCount" operator="lessOrEqual" value="2"/>
+            <SimplePredicate field="avgLoanDays" operator="greaterOrEqual" value="180"/>
+          </CompoundPredicate>
+        </Attribute>
+        <Attribute partialScore="9">
+          <SimplePredicate field="debtCount" operator="lessOrEqual" value="4"/>
+        </Attribute>
+        <Attribute partialScore="6">
+          <SimplePredicate field="debtCount" operator="lessOrEqual" value="6"/>
+        </Attribute>
+        <Attribute partialScore="3">
+          <True/>
+        </Attribute>
+      </Characteristic>
+    </Characteristics>
+  </Scorecard>
+</PMML>

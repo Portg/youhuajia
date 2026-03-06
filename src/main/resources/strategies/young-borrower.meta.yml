@@ -1,0 +1,56 @@
+strategy_name: "新手成长策略"
+segment: YOUNG_BORROWER
+description: "针对年轻首贷用户（≤2笔负债且借贷时间<1年），侧重信用建设引导，语调积极鼓励"
+created_by: "系统"
+created_at: "2026-03-01"
+version: "1.0"
+
+risk_level_boundaries: [75, 55, 35]
+restructure_threshold: 55
+
+reason_code_messages:
+  DIR:
+    label: "负债收入比"
+    explain_template: "当前负债收入比 {value}，{level_desc}"
+    level_descriptions:
+      - { max: 0.30, desc: "财务状况很棒，负债控制得很好" }
+      - { max: 0.50, desc: "负债在合理范围内，继续保持" }
+      - { max: 0.70, desc: "月供占比偏高，注意控制消费" }
+      - { max: 0.90, desc: "月供压力较大，建议暂缓新增借贷" }
+      - { max: 999, desc: "月供偏重，建议制定还款计划逐步降低" }
+    improvement_tip: "养成先还款后消费的习惯，控制月供在收入30%以内"
+  APR:
+    label: "综合利率"
+    explain_template: "当前加权利率 {value}%，{level_desc}"
+    level_descriptions:
+      - { max: 10, desc: "利率水平很优秀" }
+      - { max: 18, desc: "利率水平正常，是市场常见区间" }
+      - { max: 24, desc: "利率偏高，下次借贷可以多比较" }
+      - { max: 36, desc: "利率较高，建议了解更多低息渠道" }
+      - { max: 999, desc: "利率过高，建议寻求正规低息替代方案" }
+    improvement_tip: "首次借贷选择正规银行渠道，利率通常更低"
+  LIQ:
+    label: "流动性"
+    explain_template: "月收入与月供关系：{level_desc}"
+    level_descriptions:
+      - { max: 0, desc: "月供超过月收入，需要尽快调整" }
+      - { max: 999, desc: "月收入覆盖月供，建议养成储蓄习惯" }
+    improvement_tip: "建议每月预留10-20%收入作为应急资金"
+  OVD:
+    label: "逾期情况"
+    explain_template: "逾期 {value} 笔，{level_desc}"
+    level_descriptions:
+      - { max: 0, desc: "零逾期，征信记录良好" }
+      - { max: 1, desc: "有一笔逾期，尽快处理不影响后续征信" }
+      - { max: 3, desc: "逾期需及时处理，会影响未来贷款审批" }
+      - { max: 999, desc: "逾期较多，建议优先处理以保护征信" }
+    improvement_tip: "设置还款日提醒，避免因疏忽造成逾期"
+  CST:
+    label: "信用稳定度"
+    explain_template: "负债 {value} 笔，{level_desc}"
+    level_descriptions:
+      - { max: 2, desc: "借贷笔数少且稳定，信用建设起步很好" }
+      - { max: 4, desc: "借贷笔数适中，保持良好的还款习惯" }
+      - { max: 6, desc: "借贷偏多，建议减少不必要的分期" }
+      - { max: 999, desc: "借贷过多，短期频繁申请会影响征信评分" }
+    improvement_tip: "信用建设期避免短期多次申请，保持1-2笔稳定还款记录最佳"

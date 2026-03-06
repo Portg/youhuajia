@@ -1,0 +1,49 @@
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.project
+.classpath
+.factorypath
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+*.env.local
+application-local.yml
+
+# Logs
+logs/
+*.log
+
+# Build
+build/
+out/
+
+# Test
+/coverage/
+
+# Claude Code
+.claude/
+.ccteam/
+ccteam.yml
+
+# Frontend
+youhuajia-app/node_modules/
+youhuajia-app/dist/
+youhuajia-app/unpackage/

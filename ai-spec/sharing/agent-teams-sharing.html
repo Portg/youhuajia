@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Teams 实战分享 — 从手动编排到一键自动化</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #242836;
+    --border: #2e3345;
+    --text: #e4e7ef;
+    --text2: #9ba1b5;
+    --accent: #6c8cff;
+    --accent2: #4ecdc4;
+    --orange: #ff8c42;
+    --pink: #ff6b9d;
+    --green: #4ecdc4;
+    --yellow: #ffd93d;
+    --red: #ff6b6b;
+    --purple: #a78bfa;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 0;
+  }
+
+  /* ===== Cover ===== */
+  .cover {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    background: linear-gradient(135deg, #0f1117 0%, #1a1d3a 50%, #0f1117 100%);
+    position: relative;
+    overflow: hidden;
+    padding: 2rem;
+  }
+
+  .cover::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 30% 40%, rgba(108,140,255,0.08) 0%, transparent 50%),
+                radial-gradient(circle at 70% 60%, rgba(78,205,196,0.06) 0%, transparent 50%);
+    animation: float 20s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50% { transform: translate(-2%, 2%) rotate(1deg); }
+  }
+
+  .cover h1 {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 800;
+    line-height: 1.3;
+    position: relative;
+    z-index: 1;
+  }
+
+  .cover h1 span {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .cover .subtitle {
+    font-size: 1.3rem;
+    color: var(--text2);
+    margin-top: 1rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  .cover .meta {
+    margin-top: 2.5rem;
+    color: var(--text2);
+    font-size: 0.95rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  .cover .meta span { margin: 0 1rem; }
+
+  .cover .stats-row {
+    display: flex;
+    gap: 2rem;
+    margin-top: 3rem;
+    position: relative;
+    z-index: 1;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .stat-card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem 2rem;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    min-width: 140px;
+  }
+
+  .stat-card .num {
+    font-size: 2.5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .stat-card .label {
+    font-size: 0.85rem;
+    color: var(--text2);
+    margin-top: 0.3rem;
+  }
+
+  /* ===== Section ===== */
+  .section {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 4rem 2rem;
+  }
+
+  .section-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+  }
+
+  .section-title .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: white;
+    font-size: 1.1rem;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+
+  .section-subtitle {
+    color: var(--text2);
+    font-size: 1.05rem;
+    margin-bottom: 2.5rem;
+    padding-left: 3.5rem;
+  }
+
+  /* ===== Mind Map ===== */
+  .mindmap-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2.5rem;
+    overflow-x: auto;
+    margin: 2rem 0;
+  }
+
+  .mindmap {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 800px;
+  }
+
+  .mm-root {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 16px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    text-align: center;
+    width: fit-content;
+    margin: 0 auto 2rem;
+  }
+
+  .mm-branches {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .mm-branch {
+    flex: 1;
+    min-width: 200px;
+    max-width: 280px;
+  }
+
+  .mm-node {
+    padding: 0.8rem 1.2rem;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-align: center;
+    margin-bottom: 0.8rem;
+  }
+
+  .mm-node.l1 {
+    font-size: 1rem;
+    padding: 0.9rem 1.2rem;
+    border: 2px solid;
+  }
+
+  .mm-leaf {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.6rem 1rem;
+    font-size: 0.82rem;
+    color: var(--text2);
+    margin: 0.4rem 0 0.4rem 1rem;
+    border-left: 3px solid;
+  }
+
+  .c-blue { border-color: var(--accent); color: var(--accent); }
+  .c-green { border-color: var(--green); color: var(--green); }
+  .c-orange { border-color: var(--orange); color: var(--orange); }
+  .c-pink { border-color: var(--pink); color: var(--pink); }
+  .c-purple { border-color: var(--purple); color: var(--purple); }
+  .c-yellow { border-color: var(--yellow); color: var(--yellow); }
+
+  .bl-blue { border-left-color: var(--accent); }
+  .bl-green { border-left-color: var(--green); }
+  .bl-orange { border-left-color: var(--orange); }
+  .bl-pink { border-left-color: var(--pink); }
+  .bl-purple { border-left-color: var(--purple); }
+
+  /* ===== Timeline ===== */
+  .timeline {
+    position: relative;
+    padding-left: 3rem;
+  }
+
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 14px;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--accent), var(--green), var(--orange), var(--pink), var(--purple));
+    border-radius: 3px;
+  }
+
+  .tl-item {
+    position: relative;
+    margin-bottom: 3rem;
+  }
+
+  .tl-item::before {
+    content: '';
+    position: absolute;
+    left: -2.45rem;
+    top: 0.4rem;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 3px solid var(--accent);
+    background: var(--bg);
+  }
+
+  .tl-item:nth-child(2)::before { border-color: var(--green); }
+  .tl-item:nth-child(3)::before { border-color: var(--orange); }
+  .tl-item:nth-child(4)::before { border-color: var(--pink); }
+  .tl-item:nth-child(5)::before { border-color: var(--purple); }
+
+  .tl-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.8rem;
+    flex-wrap: wrap;
+  }
+
+  .tl-badge {
+    padding: 0.3rem 0.8rem;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .tl-badge.round1 { background: rgba(108,140,255,0.15); color: var(--accent); }
+  .tl-badge.round2 { background: rgba(78,205,196,0.15); color: var(--green); }
+  .tl-badge.round3 { background: rgba(255,140,66,0.15); color: var(--orange); }
+  .tl-badge.round4 { background: rgba(255,107,157,0.15); color: var(--pink); }
+  .tl-badge.round5 { background: rgba(167,139,250,0.15); color: var(--purple); }
+
+  .tl-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+  }
+
+  .tl-body {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+  }
+
+  /* ===== Flow Diagram ===== */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin: 1rem 0;
+  }
+
+  .flow-node {
+    padding: 0.5rem 1rem;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .flow-node.spec { background: rgba(108,140,255,0.15); color: var(--accent); border: 1px solid rgba(108,140,255,0.3); }
+  .flow-node.coder { background: rgba(78,205,196,0.15); color: var(--green); border: 1px solid rgba(78,205,196,0.3); }
+  .flow-node.integ { background: rgba(255,140,66,0.15); color: var(--orange); border: 1px solid rgba(255,140,66,0.3); }
+
+  .flow-arrow {
+    color: var(--text2);
+    font-size: 1.2rem;
+  }
+
+  .flow-parallel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    padding: 0.5rem 0.8rem;
+  }
+
+  .flow-parallel-label {
+    font-size: 0.7rem;
+    color: var(--text2);
+    text-align: center;
+  }
+
+  /* ===== Results Table ===== */
+  .results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+
+  .result-item {
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  .result-item .ri-label {
+    color: var(--text2);
+    font-size: 0.75rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .result-item .ri-value {
+    font-weight: 700;
+    font-size: 1.1rem;
+  }
+
+  .ri-value.pass { color: var(--green); }
+
+  /* ===== Pattern Cards ===== */
+  .pattern-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+    margin: 1.5rem 0;
+  }
+
+  .pattern-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    transition: border-color 0.3s;
+  }
+
+  .pattern-card:hover {
+    border-color: var(--accent);
+  }
+
+  .pattern-card h4 {
+    font-size: 1.05rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .pattern-card .pattern-id {
+    color: var(--accent);
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-bottom: 0.8rem;
+  }
+
+  .pattern-card p {
+    color: var(--text2);
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+
+  .pattern-card .pattern-roles {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.8rem;
+    flex-wrap: wrap;
+  }
+
+  .role-tag {
+    padding: 0.2rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
+  .role-tag.opus { background: rgba(167,139,250,0.15); color: var(--purple); }
+  .role-tag.sonnet { background: rgba(78,205,196,0.15); color: var(--green); }
+
+  /* ===== Evolution ===== */
+  .evolution {
+    display: flex;
+    gap: 1.5rem;
+    margin: 1.5rem 0;
+    flex-wrap: wrap;
+  }
+
+  .evo-stage {
+    flex: 1;
+    min-width: 220px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    position: relative;
+  }
+
+  .evo-stage .evo-num {
+    position: absolute;
+    top: -12px;
+    left: 1.2rem;
+    background: var(--bg);
+    padding: 0 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .evo-stage h4 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .evo-stage p {
+    color: var(--text2);
+    font-size: 0.85rem;
+  }
+
+  .evo-arrow {
+    display: flex;
+    align-items: center;
+    color: var(--text2);
+    font-size: 1.5rem;
+    flex-shrink: 0;
+  }
+
+  /* ===== Code Block ===== */
+  .code-block {
+    background: #0d0f14;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.2rem 1.5rem;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.82rem;
+    line-height: 1.8;
+    overflow-x: auto;
+    margin: 1rem 0;
+    color: var(--text2);
+  }
+
+  .code-block .comment { color: #6a7394; }
+  .code-block .keyword { color: var(--accent); }
+  .code-block .string { color: var(--green); }
+  .code-block .highlight { color: var(--yellow); }
+
+  /* ===== Key Insight ===== */
+  .insight {
+    background: linear-gradient(135deg, rgba(108,140,255,0.08), rgba(78,205,196,0.08));
+    border: 1px solid rgba(108,140,255,0.2);
+    border-radius: 16px;
+    padding: 1.5rem 2rem;
+    margin: 2rem 0;
+  }
+
+  .insight h4 {
+    color: var(--accent);
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .insight p {
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  /* ===== Comparison Table ===== */
+  .comp-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 1.5rem 0;
+    font-size: 0.88rem;
+  }
+
+  .comp-table th {
+    background: var(--surface2);
+    padding: 0.8rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text2);
+    border-bottom: 2px solid var(--border);
+  }
+
+  .comp-table th:first-child { border-radius: 10px 0 0 0; }
+  .comp-table th:last-child { border-radius: 0 10px 0 0; }
+
+  .comp-table td {
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .comp-table tr:last-child td:first-child { border-radius: 0 0 0 10px; }
+  .comp-table tr:last-child td:last-child { border-radius: 0 0 10px 0; }
+
+  .comp-table tr:hover td {
+    background: rgba(108,140,255,0.05);
+  }
+
+  /* ===== Footer ===== */
+  .footer {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: var(--text2);
+    font-size: 0.85rem;
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+  }
+
+  /* ===== Divider ===== */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 3rem 0;
+  }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 768px) {
+    .section { padding: 2rem 1rem; }
+    .stats-row { gap: 1rem; }
+    .stat-card { min-width: 110px; padding: 1rem; }
+    .stat-card .num { font-size: 2rem; }
+    .evo-arrow { display: none; }
+    .mm-branches { flex-direction: column; align-items: center; }
+    .mm-branch { max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== COVER ==================== -->
+<div class="cover">
+  <h1>
+    <span>Agent Teams</span> 实战分享<br>
+    从手动编排到一键自动化
+  </h1>
+  <p class="subtitle">Claude Code 多智能体协作开发全流程实录</p>
+  <p class="meta">
+    <span>技术中心内部分享</span>
+    <span>|</span>
+    <span>2026.03.04</span>
+  </p>
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="num">5</div>
+      <div class="label">执行轮次</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">14</div>
+      <div class="label">Agent 实例</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">162+</div>
+      <div class="label">测试用例</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">40+</div>
+      <div class="label">生成文件</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">0</div>
+      <div class="label">测试失败</div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SECTION 1: Overview ==================== -->
+<div class="section">
+  <h2 class="section-title"><span class="num">1</span> 什么是 Agent Teams</h2>
+  <p class="section-subtitle">多个 AI Agent 组成团队，按角色分工、并行协作、自动编排</p>
+
+  <div class="mindmap-container">
+    <div class="mindmap">
+      <div class="mm-root">Agent Teams 核心概念</div>
+      <div class="mm-branches">
+
+        <div class="mm-branch">
+          <div class="mm-node l1 c-blue">角色分离</div>
+          <div class="mm-leaf bl-blue">Spec (Opus) — 只写规范，不写代码</div>
+          <div class="mm-leaf bl-blue">Coder (Sonnet) — 严格按规范实现</div>
+          <div class="mm-leaf bl-blue">Reviewer — 审查 + 反馈循环</div>
+          <div class="mm-leaf bl-blue">Integrator — 端到端集成验证</div>
+        </div>
+
+        <div class="mm-branch">
+          <div class="mm-node l1 c-green">并行执行</div>
+          <div class="mm-leaf bl-green">多个 Coder 操作不同目录</div>
+          <div class="mm-leaf bl-green">Task 依赖自动阻塞/解除</div>
+          <div class="mm-leaf bl-green">不同包路径避免文件冲突</div>
+          <div class="mm-leaf bl-green">完成后自动通知下游</div>
+        </div>
+
+        <div class="mm-branch">
+          <div class="mm-node l1 c-orange">质量保障</div>
+          <div class="mm-leaf bl-orange">规范驱动 — 先设计后编码</div>
+          <div class="mm-leaf bl-orange">每个模块独立单元测试</div>
+          <div class="mm-leaf bl-orange">集成测试验证协作正确性</div>
+          <div class="mm-leaf bl-orange">合规约束自动注入 prompt</div>
+        </div>
+
+        <div class="mm-branch">
+          <div class="mm-node l1 c-pink">自动编排</div>
+          <div class="mm-leaf bl-pink">Team Lead 协调任务流转</div>
+          <div class="mm-leaf bl-pink">TaskCreate + 依赖关系</div>
+          <div class="mm-leaf bl-pink">SendMessage 跨 Agent 通信</div>
+          <div class="mm-leaf bl-pink">完成后自动 shutdown 清理</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="insight">
+    <h4>核心理念</h4>
+    <p>传统模式：一个 AI 串行完成所有工作，上下文膨胀，容易出错。<br>
+    Agent Teams：<strong>拆解 → 分工 → 并行 → 集成</strong>，每个 Agent 专注一件事，上下文精简，质量更高。</p>
+  </div>
+</div>
+
+<!-- ==================== SECTION 2: Five Rounds ==================== -->
+<div class="section">
+  <h2 class="section-title"><span class="num">2</span> 五轮实战全记录</h2>
+  <p class="section-subtitle">从引擎层 → AI 层 → 报告层 → 模板化 → 跨项目复用</p>
+
+  <div class="timeline">
+
+    <!-- Round 1 -->
+    <div class="tl-item">
+      <div class="tl-header">
+        <span class="tl-badge round1">Round 1</span>
+        <span class="tl-title">三大引擎 — 管道模式（模板 3）</span>
+      </div>
+      <div class="tl-body">
+        <p style="color:var(--text2); margin-bottom: 1rem;">AprCalculator + ScoringEngine + RuleEngine：金融计算核心</p>
+
+        <div class="flow">
+          <div class="flow-node spec">spec (Opus)</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-parallel">
+            <div class="flow-node coder">apr-coder</div>
+            <div class="flow-node coder">scoring-coder</div>
+            <div class="flow-parallel-label">并行</div>
+          </div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node integ">integrator</div>
+        </div>
+
+        <div class="results-grid">
+          <div class="result-item">
+            <div class="ri-label">Teammate 数量</div>
+            <div class="ri-value">4</div>
+          </div>
+          <div class="result-item">
+            <div class="ri-label">测试用例</div>
+            <div class="ri-value pass">78 / 78 通过</div>
+          </div>
+          <div class="result-item">
+            <div class="ri-label">关键算法</div>
+            <div class="ri-value" style="font-size:0.9rem">牛顿迭代法 APR</div>
+          </div>
+          <div class="result-item">
+            <div class="ri-label">合规验证</div>
+            <div class="ri-value pass">F-01 F-02 F-13</div>
+          </div>
+        </div>
+
+        <div class="insight" style="margin: 1rem 0 0;">
+          <h4>亮点</h4>
+          <p>评分 &lt; 60 的用户自动走 CREDIT_BUILDING 路径（非 URGENT_ATTENTION），通过集成测试端到端验证合规性。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Round 2 -->
+    <div class="tl-item">
+      <div class="tl-header">
+        <span class="tl-badge round2">Round 2</span>
+        <span class="tl-title">AI 服务层 — 扇出模式（模板 2）</span>
+      </div>
+      <div class="tl-body">
+        <p style="color:var(--text2); margin-bottom: 1rem;">OcrExtractService + SuggestionGenService：大模型文案生成</p>
+
+        <div class="flow">
+          <div class="flow-node spec">spec (Opus)</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-parallel">
+            <div class="flow-node coder">ocr-coder</div>
+            <div class="flow-node coder">suggestion-coder</div>
+            <div class="flow-parallel-label">并行</div>
+          </div>
+        </div>
+
+        <div class="results-grid">
+          <div class="result-item">
+            <div class="ri-label">Teammate 数量</div>
+            <div class="ri-value">3</div>
+          </div>
+          <div class="result-item">
+            <div class="ri-label">测试用例</div>
+            <div class="ri-value pass">37 通过 (17+20)</div>
+          </div>
+          <div class="result-item">
+            <div class="ri-label">关键特性</div>
+            <div class="ri-value" style="font-size:0.9rem">禁止词过滤 + 降级</div>
+          </div>
+          <div class="result-item">
+            <div class="ri-label">合规验证</div>
+            <div class="ri-value pass">F-02 F-11 F-13</div>
+          </div>
+        </div>
+
+        <div class="insight" style="margin: 1rem 0 0;">
+          <h4>亮点</h4>
+          <p>AI 只用于文案生成（F-02），恐慌性表达自动替换为安全表达（F-11），AI 失败时降级为规则模板。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Round 3 -->
+    <div class="tl-item">
+      <div class="tl-header">
+        <span class="tl-badge round3">Round 3</span>
+        <span class="tl-title">报告模块 — 扇出模式（模板 2）</span>
+      </div>
+      <div class="tl-body">
+        <p style="color:var(--text2); margin-bottom: 1rem;">ReportAssembler + PdfExportService：三层可解释性报告</p>
+
+        <div class="flow">
+          <div class="flow-node spec">spec (Opus)</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-parallel">
+            <div class="flow-node coder">report-coder</div>
+            <div class="flow-node coder">pdf-coder</div>
+            <div class="flow-parallel-label">并行</div>
+          </div>
+        </div>
+
+        <div class="results-grid">
+          <div class="result-item">
+            <div class="ri-label">Teammate 数量</div>
+            <div class="ri-value">3</div>
+          </div>
+          <div class="result-item">
+            <div class="ri-label">测试用例</div>
+            <div class="ri-value pass">47 通过 (35+12)</div>
+          </div>
+          <div class="result-item">
+            <div class="ri-label">关键特性</div>
+            <div class="ri-value" style="font-size:0.9rem">PDFBox A4 中文</div>
+          </div>
+          <div class="result-item">
+            <div class="ri-label">配置化</div>
+            <div class="ri-value pass">市场均值 / 房租</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Round 4 -->
+    <div class="tl-item">
+      <div class="tl-header">
+        <span class="tl-badge round4">Round 4</span>
+        <span class="tl-title">模板化 — 创建 /team Skill</span>
+      </div>
+      <div class="tl-body">
+        <p style="color:var(--text2); margin-bottom: 1rem;">把手动编排过程抽象为 7 个可复用模板 + 自动匹配 Skill</p>
+
+        <div class="pattern-grid">
+          <div class="pattern-card">
+            <h4>AGENT-TEAMS-TEMPLATES.md</h4>
+            <div class="pattern-id">7 个填空即用模板</div>
+            <p>双人组 / 扇出并行 / 管道 / Code+Review / 对抗辩论 / 三路审查 / 渐进式构建</p>
+          </div>
+          <div class="pattern-card">
+            <h4>/team Skill</h4>
+            <div class="pattern-id">自动匹配 + 参数收集 + 执行</div>
+            <p>用户只需描述任务，自动选择最佳模板、推断技术栈、收集缺失参数、创建团队执行</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Round 5 -->
+    <div class="tl-item">
+      <div class="tl-header">
+        <span class="tl-badge round5">Round 5</span>
+        <span class="tl-title">跨项目复用 — 通用化改造</span>
+      </div>
+      <div class="tl-body">
+        <p style="color:var(--text2); margin-bottom: 1rem;">从优化家（Java）专属 → 全项目通用（PHP/Go/Python/...）</p>
+
+        <table class="comp-table">
+          <thead>
+            <tr>
+              <th>维度</th>
+              <th>改造前（v1）</th>
+              <th>改造后（v2）</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>适用范围</td>
+              <td>仅优化家（Java）</td>
+              <td>任何项目</td>
+            </tr>
+            <tr>
+              <td>技术栈</td>
+              <td>硬编码 BigDecimal / mvn</td>
+              <td>运行时读取 CLAUDE.md</td>
+            </tr>
+            <tr>
+              <td>构建命令</td>
+              <td>固定 mvn test</td>
+              <td>自动检测 (mvn/artisan/npm/go...)</td>
+            </tr>
+            <tr>
+              <td>约束注入</td>
+              <td>写死 F-01~F-13</td>
+              <td>从 CLAUDE.md 动态提取</td>
+            </tr>
+            <tr>
+              <td>存放位置</td>
+              <td>项目 .claude/commands/</td>
+              <td>全局 ~/.claude/commands/</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="code-block">
+<span class="comment"># 在任何项目下都能用：</span>
+<span class="keyword">/team</span> <span class="string">并行开发预约管理和患者档案模块</span>
+
+<span class="comment"># 自动识别：</span>
+<span class="comment"># - 优化家 → Java 21 + Spring Boot + mvn test</span>
+<span class="comment"># - 口腔诊所 → PHP 8.2 + Laravel 11 + php artisan test</span>
+<span class="comment"># - 其他项目 → 自动检测 + 读取 CLAUDE.md</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ==================== SECTION 3: Patterns ==================== -->
+<div class="section">
+  <h2 class="section-title"><span class="num">3</span> 七大协作模式速查</h2>
+  <p class="section-subtitle">不同任务类型选择不同的团队编排模式</p>
+
+  <div class="pattern-grid">
+    <div class="pattern-card">
+      <h4>模板 1：双人组</h4>
+      <div class="pattern-id">单模块开发</div>
+      <p>最简模式，1 个 Spec 出规范，1 个 Coder 实现。适合初始化骨架、单功能开发。</p>
+      <div class="pattern-roles">
+        <span class="role-tag opus">Spec (Opus)</span>
+        <span class="role-tag sonnet">Coder (Sonnet)</span>
+      </div>
+    </div>
+
+    <div class="pattern-card">
+      <h4>模板 2：扇出并行</h4>
+      <div class="pattern-id">多模块并行 · 最常用</div>
+      <p>1 个 Spec + N 个 Coder 并行。每个 Coder 操作独占目录，互不冲突。</p>
+      <div class="pattern-roles">
+        <span class="role-tag opus">Spec</span>
+        <span class="role-tag sonnet">Coder A</span>
+        <span class="role-tag sonnet">Coder B</span>
+        <span class="role-tag sonnet">Coder C</span>
+      </div>
+    </div>
+
+    <div class="pattern-card">
+      <h4>模板 3：管道 + 集成</h4>
+      <div class="pattern-id">需要端到端验证</div>
+      <p>扇出并行 + Integrator。多模块完成后，Integrator 写集成测试验证协作正确性。</p>
+      <div class="pattern-roles">
+        <span class="role-tag opus">Spec</span>
+        <span class="role-tag sonnet">Coder A</span>
+        <span class="role-tag sonnet">Coder B</span>
+        <span class="role-tag sonnet">Integrator</span>
+      </div>
+    </div>
+
+    <div class="pattern-card">
+      <h4>模板 4：Code + Review</h4>
+      <div class="pattern-id">精度 / 安全敏感</div>
+      <p>Coder 写完后 Reviewer 逐项审查，发现问题打回修复，循环直到全部通过。</p>
+      <div class="pattern-roles">
+        <span class="role-tag sonnet">Coder</span>
+        <span class="role-tag sonnet">Reviewer</span>
+      </div>
+    </div>
+
+    <div class="pattern-card">
+      <h4>模板 5：对抗辩论</h4>
+      <div class="pattern-id">技术选型决策</div>
+      <p>两个 Advocate 各为一方案辩护，Judge 综合评估给出最终推荐。</p>
+      <div class="pattern-roles">
+        <span class="role-tag opus">Advocate A</span>
+        <span class="role-tag opus">Advocate B</span>
+        <span class="role-tag opus">Judge</span>
+      </div>
+    </div>
+
+    <div class="pattern-card">
+      <h4>模板 6：三路审查</h4>
+      <div class="pattern-id">上线前检查</div>
+      <p>安全 + 性能 + 质量三个维度并行审查，Team Lead 汇总报告。</p>
+      <div class="pattern-roles">
+        <span class="role-tag sonnet">Security</span>
+        <span class="role-tag sonnet">Performance</span>
+        <span class="role-tag sonnet">Quality</span>
+      </div>
+    </div>
+
+    <div class="pattern-card">
+      <h4>模板 7：渐进式构建</h4>
+      <div class="pattern-id">前端多页面</div>
+      <p>Architect 出整体规范，按难度分组（简单/核心/业务），三组并行构建。</p>
+      <div class="pattern-roles">
+        <span class="role-tag opus">Architect</span>
+        <span class="role-tag sonnet">Simple</span>
+        <span class="role-tag sonnet">Core</span>
+        <span class="role-tag sonnet">Business</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SECTION 4: Evolution ==================== -->
+<div class="section">
+  <h2 class="section-title"><span class="num">4</span> 演进路径 — 三步走</h2>
+  <p class="section-subtitle">从手写 prompt → 模板填空 → 一键自动化</p>
+
+  <div class="evolution">
+    <div class="evo-stage">
+      <div class="evo-num">STAGE 1</div>
+      <h4>手动编排</h4>
+      <p>每次手写完整 prompt，指定每个 Agent 的角色、文件、约束。工作但繁琐，需要记住所有细节。</p>
+      <div style="margin-top:0.8rem; color:var(--text2); font-size:0.8rem;">
+        Round 1-3 的实际操作方式
+      </div>
+    </div>
+    <div class="evo-arrow">→</div>
+    <div class="evo-stage">
+      <div class="evo-num">STAGE 2</div>
+      <h4>模板化</h4>
+      <p>提炼 7 种协作模式为填空模板，选择模板 → 填入项目参数 → 执行。减少重复劳动。</p>
+      <div style="margin-top:0.8rem; color:var(--text2); font-size:0.8rem;">
+        AGENT-TEAMS-TEMPLATES.md
+      </div>
+    </div>
+    <div class="evo-arrow">→</div>
+    <div class="evo-stage">
+      <div class="evo-num">STAGE 3</div>
+      <h4>Skill 自动化</h4>
+      <p>一句话描述任务，自动匹配模板 + 读取 CLAUDE.md + 推断技术栈 + 创建团队。跨项目通用。</p>
+      <div style="margin-top:0.8rem; color:var(--text2); font-size:0.8rem;">
+        /team skill（全局通用）
+      </div>
+    </div>
+  </div>
+
+  <div class="insight">
+    <h4>关键洞察</h4>
+    <p><strong>AI 工程化的本质</strong>：把"与 AI 协作"本身当作软件工程来做。<br>
+    Prompt 是代码 → 模板是函数 → Skill 是 SDK。每一层抽象都在降低使用门槛、提高一致性。</p>
+  </div>
+</div>
+
+<!-- ==================== SECTION 5: Lessons ==================== -->
+<div class="section">
+  <h2 class="section-title"><span class="num">5</span> 实战经验总结</h2>
+  <p class="section-subtitle">踩坑与最佳实践</p>
+
+  <div class="mindmap-container">
+    <div class="mindmap">
+      <div class="mm-root">实战经验</div>
+      <div class="mm-branches">
+
+        <div class="mm-branch">
+          <div class="mm-node l1 c-green">成功要素</div>
+          <div class="mm-leaf bl-green"><strong>Spec 先行</strong> — 规范质量决定代码质量，用 Opus 不省</div>
+          <div class="mm-leaf bl-green"><strong>目录隔离</strong> — 每个 Coder 独占包路径，零冲突</div>
+          <div class="mm-leaf bl-green"><strong>约束注入</strong> — CLAUDE.md 的禁止项自动进入每个 Agent</div>
+          <div class="mm-leaf bl-green"><strong>测试驱动</strong> — 每个模块独立测试 + 集成测试兜底</div>
+        </div>
+
+        <div class="mm-branch">
+          <div class="mm-node l1 c-orange">注意事项</div>
+          <div class="mm-leaf bl-orange"><strong>跨包修改</strong> — Coder 可能"好心"修改别人的文件</div>
+          <div class="mm-leaf bl-orange"><strong>Spec 偏差</strong> — 规范中的矛盾需要 Team Lead 仲裁</div>
+          <div class="mm-leaf bl-orange"><strong>Shutdown 延迟</strong> — 有些 Agent 需要多次 shutdown 请求</div>
+          <div class="mm-leaf bl-orange"><strong>依赖冲突</strong> — 多个 Coder 同时修改 pom.xml / yml</div>
+        </div>
+
+        <div class="mm-branch">
+          <div class="mm-node l1 c-purple">最佳实践</div>
+          <div class="mm-leaf bl-purple"><strong>Opus for thinking, Sonnet for doing</strong></div>
+          <div class="mm-leaf bl-purple"><strong>Task 依赖</strong> — blockedBy 确保正确执行顺序</div>
+          <div class="mm-leaf bl-purple"><strong>明确边界</strong> — 告诉每个 Agent "你只操作 X 目录"</div>
+          <div class="mm-leaf bl-purple"><strong>全量验证</strong> — 最后 mvn test 全量跑一次</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th>维度</th>
+        <th>单 Agent 模式</th>
+        <th>Agent Teams 模式</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>上下文窗口</td>
+        <td>全部堆在一个窗口，容易溢出</td>
+        <td>每个 Agent 独立上下文，精简聚焦</td>
+      </tr>
+      <tr>
+        <td>并行度</td>
+        <td>串行，一个做完才能做下一个</td>
+        <td>多模块真正并行执行</td>
+      </tr>
+      <tr>
+        <td>质量保障</td>
+        <td>自己写自己查，容易遗漏</td>
+        <td>规范驱动 + 交叉验证 + 集成测试</td>
+      </tr>
+      <tr>
+        <td>一致性</td>
+        <td>上下文长了容易"忘记"约束</td>
+        <td>约束在每个 Agent prompt 中独立注入</td>
+      </tr>
+      <tr>
+        <td>复杂度</td>
+        <td>简单任务更高效</td>
+        <td>3+ 模块时优势明显</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ==================== SECTION 6: Quick Start ==================== -->
+<div class="section">
+  <h2 class="section-title"><span class="num">6</span> 快速上手指南</h2>
+  <p class="section-subtitle">三步开始使用 Agent Teams</p>
+
+  <div class="evolution">
+    <div class="evo-stage">
+      <div class="evo-num">STEP 1</div>
+      <h4>配置项目</h4>
+      <p>确保项目有 <code>CLAUDE.md</code> 和 <code>.claude/settings.json</code>（开启 AGENT_TEAMS 环境变量）。</p>
+    </div>
+    <div class="evo-arrow">→</div>
+    <div class="evo-stage">
+      <div class="evo-num">STEP 2</div>
+      <h4>选择模式</h4>
+      <p>参考七大模板决策树：单模块→双人组，多模块→扇出，需集成→管道，要审查→三路。</p>
+    </div>
+    <div class="evo-arrow">→</div>
+    <div class="evo-stage">
+      <div class="evo-num">STEP 3</div>
+      <h4>执行 /team</h4>
+      <p>输入 <code>/team + 任务描述</code>，自动匹配模板、收集参数、创建团队并执行。</p>
+    </div>
+  </div>
+
+  <div class="code-block">
+<span class="comment"># 前置配置（一次性）</span>
+<span class="keyword">mkdir -p</span> .claude
+<span class="keyword">cat</span> > .claude/settings.json << <span class="string">'EOF'</span>
+{
+  <span class="string">"env"</span>: { <span class="string">"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"</span>: <span class="string">"1"</span> },
+  <span class="string">"permissions"</span>: { <span class="string">"allow"</span>: [<span class="string">"Bash(mvn *)"</span>, <span class="string">"Bash(git *)"</span>] }
+}
+<span class="string">EOF</span>
+
+<span class="comment"># 使用</span>
+<span class="highlight">/team</span> <span class="string">并行开发用户认证和患者管理两个模块</span>
+<span class="highlight">/team</span> <span class="string">审查 src/ 下代码的安全和性能</span>
+<span class="highlight">/team</span> <span class="string">对比 MySQL 和 PostgreSQL 选型</span>
+  </div>
+</div>
+
+<!-- ==================== Footer ==================== -->
+<div class="footer">
+  <p>Agent Teams 实战分享 &nbsp;|&nbsp; 技术中心 &nbsp;|&nbsp; 2026.03.04</p>
+  <p style="margin-top: 0.5rem; color: var(--text2);">Generated with Claude Code — Agent Teams in action</p>
+</div>
+
+</body>
+</html>

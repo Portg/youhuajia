@@ -1,0 +1,133 @@
+server:
+  port: 8080
+  shutdown: graceful
+
+spring:
+  application:
+    name: youhuajia
+  profiles:
+    active: dev
+
+  # Jackson
+  jackson:
+    default-property-inclusion: non_null
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+
+  # Flyway
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+# MyBatis-Plus
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+    default-enum-type-handler: com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+      id-type: assign_id
+
+# SpringDoc OpenAPI
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: when-authorized
+  health:
+    redis:
+      enabled: true
+    db:
+      enabled: true
+
+# Resilience4j (programmatic config takes precedence; this section enables actuator exposure)
+resilience4j:
+  circuitbreaker:
+    instances:
+      deepseek:
+        failure-rate-threshold: 50
+        minimum-number-of-calls: 10
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 5
+        automatic-transition-from-open-to-half-open-enabled: true
+
+# ==================== 优化家业务配置 ====================
+youhua:
+
+  # ---------- APR 计算引擎 ----------
+  # AprCalculator 用于计算单笔/加权年化利率，以下为利率分级阈值（单位：%）
+  engine:
+    apr:
+      warning-threshold: 36.0      # ≤36% 正常；>36% 标记为高息预警（对应国家司法保护上限）
+      danger-threshold: 100.0      # >100% 标记为危险利率
+      abnormal-threshold: 1000.0   # >1000% 标记为异常（可能是录入错误）
+      max-allowed: 10000.0         # >10000% 直接拒绝计算（防止除零或极端输入）
+
+    # ---------- 评分策略 ----------
+    # PMML 评分卡模型文件目录，空值则从 classpath:strategies/ 加载
+    # 设为文件系统路径（如 /opt/youhua/strategies）可支持热加载
+    scoring:
+      strategy-dir: ""
+
+  # ---------- 规则引擎 ----------
+  rules:
+    # 数值合理性校验阈值
+    value:
+      apr-warning-threshold: 36.0  # APR 超过此值触发 HIGH_INTEREST 预警（%）
+      apr-max-allowed: 10000.0     # APR 超过此值触发 SUSPECTED_FRAUD 拦截（%）
+      extreme-debt-ratio: 0.9      # 月供/月收入超过此值触发 EXTREME_DEBT_RATIO 预警
+      high-total-debt: 10000000    # 总负债超过此值（元）触发 HIGH_TOTAL_DEBT 预警
+    # 反欺诈频率限制
+    fraud:
+      max-debt-create-per-hour: 20   # 单用户每小时最多创建债务条数
+      max-profile-calc-per-hour: 10  # 单用户每小时最多触发画像计算次数
+
+  # ---------- 日志监控 ----------
+  log:
+    slow-request-threshold-ms: 3000  # 接口响应超过此值（ms）记录慢请求日志
+    slow-sql-threshold-ms: 1000      # SQL 执行超过此值（ms）记录慢查询日志
+
+  # ---------- AI 服务（OCR / 建议生成） ----------
+  ai:
+    timeout-seconds: 30    # AI 接口超时时间（秒）
+    max-retries: 3         # AI 接口失败重试次数
+    baidu-ocr:
+      api-key: ${BAIDU_OCR_API_KEY:f0h4Ig3EGEiUnfczwoKp65Yv}
+      secret-key: ${BAIDU_OCR_SECRET_KEY:chbVgdBl85iw92ZBdU3JFQXcGMCdzELA}
+
+  # ---------- 报告模块 ----------
+  report:
+    market-avg-apr: 8.5              # 市场平均利率（%），用于报告中的利率对比展示
+    avg-monthly-rent: 6000.00        # 当地平均月租金（元），用于"相当于X个月房租"的类比
+    healthy-debt-income-ratio: 0.40  # 健康负债收入比阈值，报告中标记为"建议控制在此以下"
+    scoring-model-version: "v1.0"    # 报告页脚显示的评分模型版本号
+  # V2.0 reserved
+  bank:
+    enabled: false
+  asset:
+    enabled: false
+  # V2.1 reserved
+  family:
+    enabled: false

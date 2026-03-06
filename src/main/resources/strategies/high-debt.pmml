@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PMML version="4.4" xmlns="http://www.dmg.org/PMML-4_4">
+  <Header description="优化家评分卡 - 高负债策略 v1.0">
+    <Application name="YouHuaJia" version="1.0"/>
+    <Timestamp>2026-03-01</Timestamp>
+  </Header>
+
+  <DataDictionary numberOfFields="8">
+    <DataField name="debtIncomeRatio" optype="continuous" dataType="double"/>
+    <DataField name="weightedApr" optype="continuous" dataType="double"/>
+    <DataField name="monthlyIncome" optype="continuous" dataType="double"/>
+    <DataField name="monthlyPayment" optype="continuous" dataType="double"/>
+    <DataField name="overdueCount" optype="continuous" dataType="integer"/>
+    <DataField name="maxOverdueDays" optype="continuous" dataType="integer"/>
+    <DataField name="debtCount" optype="continuous" dataType="integer"/>
+    <DataField name="avgLoanDays" optype="continuous" dataType="integer"/>
+  </DataDictionary>
+
+  <!-- 高负债用户策略：DIR权重0.35（↑）, APR 0.20（↓）, LIQ 0.15, OVD 0.20, CST 0.10 -->
+  <!-- 特点：DIR分段更细、对高负债比更宽容（中间档分数更高），鼓励逐步降低 -->
+  <Scorecard modelName="high_debt_strategy" functionName="regression"
+             initialScore="0" useReasonCodes="true"
+             reasonCodeAlgorithm="pointsAbove" baselineMethod="max">
+    <MiningSchema>
+      <MiningField name="debtIncomeRatio" invalidValueTreatment="asMissing"/>
+      <MiningField name="weightedApr" invalidValueTreatment="asMissing"/>
+      <MiningField name="monthlyIncome" invalidValueTreatment="asMissing"/>
+      <MiningField name="monthlyPayment"/>
+      <MiningField name="overdueCount"/>
+      <MiningField name="maxOverdueDays"/>
+      <MiningField name="debtCount"/>
+      <MiningField name="avgLoanDays"/>
+    </MiningSchema>
+
+    <Output>
+      <OutputField name="finalScore" feature="predictedValue" dataType="double"/>
+      <OutputField name="ReasonCode1" rank="1" feature="reasonCode" dataType="string"/>
+      <OutputField name="ReasonCode2" rank="2" feature="reasonCode" dataType="string"/>
+      <OutputField name="ReasonCode3" rank="3" feature="reasonCode" dataType="string"/>
+    </Output>
+
+    <LocalTransformations>
+      <DerivedField name="netCashflow" optype="continuous" dataType="double">
+        <Apply function="-">
+          <FieldRef field="monthlyIncome"/>
+          <FieldRef field="monthlyPayment"/>
+        </Apply>
+      </DerivedField>
+    </LocalTransformations>
+
+    <Characteristics>
+      <!-- DIR (weight=0.35): 更细的分段，对0.50-0.90区间给更高分（鼓励渐进改善） -->
+      <!-- 原始分: 90/75/60/40/25/10, ×0.35 -->
+      <Characteristic name="debtIncomeRatioScore" reasonCode="DIR" baselineScore="31.5">
+        <Attribute partialScore="7">
+          <SimplePredicate field="debtIncomeRatio" operator="isMissing"/>
+        </Attribute>
+        <Attribute partialScore="31.5">
+          <SimplePredicate field="debtIncomeRatio" operator="lessOrEqual" value="0.30"/>
+        </Attribute>
+        <Attribute partialScore="26.25">
+          <SimplePredicate field="debtIncomeRatio" operator="lessOrEqual" value="0.50"/>
+        </Attribute>
+        <Attribute partialScore="21">
+          <SimplePredicate field="debtIncomeRatio" operator="lessOrEqual" value="0.70"/>
+        </Attribute>
+        <Attribute partialScore="14">
+          <SimplePredicate field="debtIncomeRatio" operator="lessOrEqual" value="0.90"/>
+        </Attribute>
+        <Attribute partialScore="8.75">
+          <SimplePredicate field="debtIncomeRatio" operator="lessOrEqual" value="1.20"/>
+        </Attribute>
+        <Attribute partialScore="3.5">
+          <True/>
+        </Attribute>
+      </Characteristic>
+
+      <!-- APR (weight=0.20): 降低权重，高负债用户首要目标是降负债比而非利率 -->
+      <!-- 原始分: 90/75/55/35/15, ×0.20 -->
+      <Characteristic name="weightedAprScore" reasonCode="APR" baselineScore="18">
+        <Attribute partialScore="11">
+          <SimplePredicate field="weightedApr" operator="isMissing"/>
+        </Attribute>
+        <Attribute partialScore="18">
+          <SimplePredicate field="weightedApr" operator="lessOrEqual" value="10"/>
+        </Attribute>
+        <Attribute partialScore="15">
+          <SimplePredicate field="weightedApr" operator="lessOrEqual" value="18"/>
+        </Attribute>
+        <Attribute partialScore="11">
+          <SimplePredicate field="weightedApr" operator="lessOrEqual" value="24"/>
+        </Attribute>
+        <Attribute partialScore="7">
+          <SimplePredicate field="weightedApr" operator="lessOrEqual" value="36"/>
+        </Attribute>
+        <Attribute partialScore="3">
+          <True/>
+        </Attribute>
+      </Characteristic>
+
+      <!-- LIQ (weight=0.15): 同默认 -->
+      <Characteristic name="liquidityScore" reasonCode="LIQ" baselineScore="9">
+        <Attribute partialScore="6">
+          <SimplePredicate field="monthlyIncome" operator="isMissing"/>
+        </Attribute>
+        <Attribute partialScore="6">
+          <SimplePredicate field="monthlyIncome" operator="equal" value="0"/>
+        </Attribute>
+        <Attribute partialScore="9">
+          <SimplePredicate field="netCashflow" operator="greaterThan" value="0"/>
+        </Attribute>
+        <Attribute partialScore="4.5">
+          <True/>
+        </Attribute>
+      </Characteristic>
+
+      <!-- OVD (weight=0.20): 同默认 -->
+      <Characteristic name="overdueScore" reasonCode="OVD" baselineScore="19">
+        <Attribute partialScore="19">
+          <SimplePredicate field="overdueCount" operator="equal" value="0"/>
+        </Attribute>
+        <Attribute partialScore="14">
+          <CompoundPredicate booleanOperator="and">
+            <SimplePredicate field="overdueCount" operator="equal" value="1"/>
+            <SimplePredicate field="maxOverdueDays" operator="lessOrEqual" value="30"/>
+          </CompoundPredicate>
+        </Attribute>
+        <Attribute partialScore="10">
+          <CompoundPredicate booleanOperator="and">
+            <SimplePredicate field="overdueCount" operator="lessOrEqual" value="2"/>
+            <SimplePredicate field="maxOverdueDays" operator="lessOrEqual" value="60"/>
+          </CompoundPredicate>
+        </Attribute>
+        <Attribute partialScore="6">
+          <CompoundPredicate booleanOperator="and">
+            <SimplePredicate field="overdueCount" operator="lessOrEqual" value="3"/>
+            <SimplePredicate field="maxOverdueDays" operator="lessOrEqual" value="90"/>
+          </CompoundPredicate>
+        </Attribute>
+        <Attribute partialScore="2">
+          <True/>
+        </Attribute>
+      </Characteristic>
+
+      <!-- CST (weight=0.10): 同默认 -->
+      <Characteristic name="creditStabilityScore" reasonCode="CST" baselineScore="8">
+        <Attribute partialScore="8">
+          <CompoundPredicate booleanOperator="and">
+            <SimplePredicate field="debtCount" operator="lessOrEqual" value="2"/>
+            <SimplePredicate field="avgLoanDays" operator="greaterOrEqual" value="180"/>
+          </CompoundPredicate>
+        </Attribute>
+        <Attribute partialScore="6">
+          <SimplePredicate field="debtCount" operator="lessOrEqual" value="4"/>
+        </Attribute>
+        <Attribute partialScore="4">
+          <SimplePredicate field="debtCount" operator="lessOrEqual" value="6"/>
+        </Attribute>
+        <Attribute partialScore="2">
+          <True/>
+        </Attribute>
+      </Characteristic>
+    </Characteristics>
+  </Scorecard>
+</PMML>

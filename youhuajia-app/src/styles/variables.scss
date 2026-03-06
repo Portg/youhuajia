@@ -1,0 +1,98 @@
+// ============================================
+// 优化家 Design System — 2026 Edition
+// Warm Glassmorphic · Organic Depth · Premium
+// ============================================
+
+// ---- 主色 — 沉稳深蓝，安全感 ----
+$primary: #1B6DB2;
+$primary-dark: #134E82;
+$primary-light: #E3F0FA;
+$primary-glass: rgba(27, 109, 178, 0.08);
+$primary-gradient: linear-gradient(135deg, #3A9BDC 0%, #1B6DB2 50%, #134E82 100%);
+
+// ---- 强调色 — 温暖琥珀，数据冲击 ----
+$accent: #D97B1A;
+$accent-light: #FEF3E2;
+$accent-glass: rgba(217, 123, 26, 0.06);
+$accent-gradient: linear-gradient(135deg, #F2A94B 0%, #D97B1A 100%);
+
+// ---- 正面色 — 翡翠绿，好消息 ----
+$positive: #0FA968;
+$positive-light: #E6F9F0;
+$positive-glass: rgba(15, 169, 104, 0.06);
+$positive-gradient: linear-gradient(135deg, #34D58C 0%, #0FA968 100%);
+
+// ---- 禁止使用红色和告警黄 ----
+// $danger: #E53935;  ← 禁用
+// $warning: #FF9800; ← 禁用
+
+// ---- 中性色 — 温暖灰阶 ----
+$text-primary: #0F172A;
+$text-secondary: #64748B;
+$text-tertiary: #94A3B8;
+$text-inverse: #FFFFFF;
+
+// ---- 表面与背景 — 温暖奶油底 ----
+$background: #F5F7FA;
+$background-warm: #FAF8F5;
+$surface: #FFFFFF;
+$surface-elevated: #FFFFFF;
+$surface-glass: rgba(255, 255, 255, 0.72);
+$surface-glass-border: rgba(255, 255, 255, 0.45);
+$divider: #E8ECF1;
+$divider-light: #F1F5F9;
+
+// ---- 间距 — 8pt 网格 ----
+$spacing-xs: 8rpx;
+$spacing-sm: 16rpx;
+$spacing-md: 24rpx;
+$spacing-lg: 32rpx;
+$spacing-xl: 40rpx;
+$spacing-2xl: 48rpx;
+$spacing-3xl: 64rpx;
+
+// ---- 圆角 — 更大更圆润 ----
+$radius-xs: 8rpx;
+$radius-sm: 12rpx;
+$radius-md: 20rpx;
+$radius-lg: 28rpx;
+$radius-xl: 36rpx;
+$radius-2xl: 48rpx;
+$radius-pill: 200rpx;
+
+// ---- 字号 — 更大的层级跨度 ----
+$font-xs: 22rpx;
+$font-sm: 26rpx;
+$font-md: 30rpx;
+$font-lg: 34rpx;
+$font-xl: 44rpx;
+$font-xxl: 60rpx;
+$font-display: 80rpx;
+$font-hero: 96rpx;
+
+// ---- 字重 ----
+$weight-normal: 400;
+$weight-medium: 500;
+$weight-semibold: 600;
+$weight-bold: 700;
+$weight-black: 900;
+
+// ---- 阴影 — 多层景深 ----
+$shadow-xs: 0 1rpx 4rpx rgba(15, 23, 42, 0.04);
+$shadow-sm: 0 2rpx 8rpx rgba(15, 23, 42, 0.04), 0 4rpx 16rpx rgba(15, 23, 42, 0.02);
+$shadow-md: 0 4rpx 12rpx rgba(15, 23, 42, 0.04), 0 8rpx 32rpx rgba(15, 23, 42, 0.06);
+$shadow-lg: 0 8rpx 24rpx rgba(15, 23, 42, 0.06), 0 16rpx 48rpx rgba(15, 23, 42, 0.08);
+$shadow-xl: 0 12rpx 36rpx rgba(15, 23, 42, 0.08), 0 24rpx 64rpx rgba(15, 23, 42, 0.10);
+$shadow-primary: 0 8rpx 32rpx rgba(27, 109, 178, 0.28);
+$shadow-accent: 0 8rpx 32rpx rgba(217, 123, 26, 0.20);
+
+// ---- 动效 ----
+$transition-fast: 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+$transition-normal: 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+$transition-spring: 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+$transition-smooth: 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+
+// ---- 毛玻璃 ----
+$blur-sm: 12px;
+$blur-md: 24px;
+$blur-lg: 40px;
