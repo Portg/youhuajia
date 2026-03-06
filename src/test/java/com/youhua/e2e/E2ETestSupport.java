@@ -11,7 +11,9 @@ import com.youhua.engine.service.EngineService;
 import com.youhua.profile.service.FinanceProfileService;
 import com.youhua.profile.service.IncomeService;
 import com.youhua.profile.service.ReportService;
+import com.youhua.testconfig.TestRedisConfig;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 
 /**
  * Shared @MockBean declarations for @SpringBootTest e2e tests.
@@ -20,6 +22,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
  * Mockito stubs to satisfy the Spring context. Each concrete test class configures
  * its own Mockito behaviour via when(...).thenReturn(...) in @BeforeEach.
  */
+@Import(TestRedisConfig.class)
 public abstract class E2ETestSupport {
 
     // Service layer — no implementations exist yet

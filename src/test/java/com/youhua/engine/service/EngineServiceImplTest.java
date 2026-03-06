@@ -38,7 +38,7 @@ class EngineServiceImplTest {
         config.setAbnormalThreshold(new BigDecimal("1000.0"));
         config.setMaxAllowed(new BigDecimal("10000.0"));
         aprCalculator = new AprCalculator(config);
-        engineService = new EngineServiceImpl(aprCalculator, null, null, null, null, null);
+        engineService = new EngineServiceImpl(aprCalculator, null, null, null, null, null, null);
     }
 
     // ===== calculateApr Tests =====

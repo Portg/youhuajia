@@ -10,8 +10,12 @@ import com.youhua.engine.service.EngineService;
 import com.youhua.infra.log.mapper.OperationLogMapper;
 import com.youhua.profile.mapper.FinanceProfileMapper;
 import com.youhua.profile.mapper.IncomeRecordMapper;
+import com.youhua.engine.scoring.mapper.ScoreRecordMapper;
+import com.youhua.infra.mapper.FailedEventMapper;
+import com.youhua.profile.mapper.ConsultationRequestMapper;
 import com.youhua.profile.mapper.OptimizationReportMapper;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
  * Base support for @WebMvcTest integration tests.
@@ -55,4 +59,16 @@ public abstract class WebMvcTestSupport {
 
     @MockBean
     protected DebtEntryTimeoutHandler debtEntryTimeoutHandler;
+
+    @MockBean
+    protected StringRedisTemplate stringRedisTemplate;
+
+    @MockBean
+    protected ScoreRecordMapper scoreRecordMapper;
+
+    @MockBean
+    protected ConsultationRequestMapper consultationRequestMapper;
+
+    @MockBean
+    protected FailedEventMapper failedEventMapper;
 }

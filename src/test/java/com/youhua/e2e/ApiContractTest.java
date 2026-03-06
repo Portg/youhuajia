@@ -286,12 +286,10 @@ class ApiContractTest extends E2ETestSupport {
                         .header("Authorization", AUTH_HEADER))
                 .andReturn().getResponse().getStatus();
 
-        // Document the mismatch: frontend URL returns 4xx/5xx (no route), backend URL does not
+        // FIXED: frontend and backend now both use /finance-profiles/mine
         assertThat(frontendUrlStatus).as(
-                "MISMATCH #1: Frontend calls /finance-profiles/mine but backend has no handler for that path. " +
-                "Backend correctly handles /finance-profiles/mine. " +
-                "Fix: align frontend profile.js or backend FinanceProfileController."
-        ).isIn(404, 500);
+                "MISMATCH #1 RESOLVED: /finance-profiles/mine is now correctly handled"
+        ).isNotIn(404, 500);
 
         assertThat(backendUrlStatus).as(
                 "Backend path /finance-profiles/mine must be reachable (not 404)"
@@ -319,10 +317,10 @@ class ApiContractTest extends E2ETestSupport {
                         .header("Authorization", AUTH_HEADER))
                 .andReturn().getResponse().getStatus();
 
+        // FIXED: frontend and backend now both use /finance-profiles/mine:calculate
         assertThat(frontendUrlStatus).as(
-                "MISMATCH #2: Frontend calls /finance-profiles/mine:calculate but backend has no handler for that path. " +
-                "Fix: align frontend profile.js or backend FinanceProfileController."
-        ).isIn(404, 500);
+                "MISMATCH #2 RESOLVED: /finance-profiles/mine:calculate is now correctly handled"
+        ).isNotIn(404, 500);
 
         assertThat(backendUrlStatus).as(
                 "Backend path /finance-profiles/mine:calculate must be reachable (not 404)"

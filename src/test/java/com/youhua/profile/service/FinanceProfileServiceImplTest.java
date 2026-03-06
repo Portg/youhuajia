@@ -31,6 +31,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -74,6 +75,7 @@ class FinanceProfileServiceImplTest {
                 aprCalculator, scoringEngine, ruleEngine, operationLogService,
                 new ObjectMapper(), scoreRecordService
         );
+        ReflectionTestUtils.setField(service, "marketBaseApr", new BigDecimal("18"));
 
         // Set up request context so getCurrentUserId() returns TEST_USER_ID
         MockHttpServletRequest request = new MockHttpServletRequest();

@@ -55,6 +55,7 @@ class AuthServiceImplTest {
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(authService, "jwtSecret", "youhuajia-test-secret-key-2024");
+        ReflectionTestUtils.setField(authService, "jwtExpirationSeconds", 604800L);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     }
 
