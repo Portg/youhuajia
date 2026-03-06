@@ -12,6 +12,7 @@ ai-spec/
 │
 ├── CLAUDE.md                      ← 🔴 AI 行为总纲（每次生成必读）
 ├── README.md                      ← 本文件
+├── WORKFLOW-KNOWHOW.md            ← 小迭代 vs 大规模迭代、何时先改 spec（见下方）
 │
 ├── contracts/                     ← 接口契约层
 │   ├── openapi.yaml               ← OpenAPI 3.0 完整接口规范
@@ -111,6 +112,14 @@ ai-spec/
 输入给 AI：CLAUDE.md + test/test-matrix.md + test/mock-data.md
 让 AI 生成：集成测试 + 并发测试 + 安全测试 + Seed 脚本
 ```
+
+---
+
+## 迭代方式（Vibe Coding）
+
+- **小功能迭代**：直接改代码为主，对话里按需 @ 相关 spec；仅当改动涉及接口/表/流程/规则时，先改对应 spec 再实现。
+- **大规模迭代**：先更新 ai-spec 中相关文件（openapi、entities、state-machines、user-journey、engine 等），再按 spec 实现或重构。
+- 详见 **WORKFLOW-KNOWHOW.md**。
 
 ---
 

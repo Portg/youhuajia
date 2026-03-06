@@ -6,7 +6,7 @@
 
 - **项目名称**：优化家（YouHuaJia），MVP V1.0
 - **核心定位**：面向个人用户的债务优化决策引擎
-- **技术栈**：Java 21 + Spring Boot 3.4 + MyBatis-Plus 3.5 + MySQL 8 + Redis + Flyway + Spring AI (DeepSeek) + React 18/TypeScript + Ant Design Mobile
+- **技术栈**：Java 21 + Spring Boot 3.4 + MyBatis-Plus 3.5 + MySQL 8 + Redis + Flyway + Spring AI (DeepSeek) + 百度 OCR | 前端：Vue 3.4 + uni-app 3.0 + Pinia + SCSS
 - **ORM 选型**：MyBatis-Plus（不用 JPA），金融场景需精确控制 SQL
 - **MVP 不引入**：ES、微服务框架、消息队列（用 Spring Event 替代）
 
@@ -114,3 +114,4 @@
 | `test/test-matrix.md`        | 生成测试时                       |
 | `test/mock-data.md`          | 生成测试数据时                   |
 | `prompts/*.md`               | 生成 OCR/建议/报告模块时         |
+| `WORKFLOW-KNOWHOW.md`        | 确定小迭代直接改代码 vs 先改 spec 时 |
