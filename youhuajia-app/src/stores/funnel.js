@@ -172,6 +172,7 @@ export const useFunnelStore = defineStore('funnel', () => {
   }
 
   function reset() {
+    const wasLowScore = isLowScore.value
     score.value = 0
     currentStep.value = 1
     financeProfile.value = null
@@ -186,8 +187,10 @@ export const useFunnelStore = defineStore('funnel', () => {
       prioritizeHighApr: false,
       reassessIn30Days: false,
     }
-    // 「重新评估」清空后端改善计划记录（fire-and-forget）
-    deleteImprovementPlan().catch(() => {})
+    // 低分用户「重新评估」时清空后端改善计划记录（fire-and-forget）
+    if (wasLowScore) {
+      deleteImprovementPlan().catch(() => {})
+    }
   }
 
   return {

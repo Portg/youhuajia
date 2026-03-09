@@ -9,6 +9,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import { useFunnelStore } from '../funnel.js'
 
 // mock 改善计划 API，避免在单元测试中发出真实 HTTP 请求
+import * as improvementPlanApi from '../../api/improvementPlan.js'
 vi.mock('../../api/improvementPlan.js', () => ({
   upsertImprovementPlan: vi.fn(() => Promise.resolve()),
   deleteImprovementPlan: vi.fn(() => Promise.resolve()),
@@ -190,6 +191,26 @@ describe('reset', () => {
     expect(store.financeProfile).toBeNull()
     expect(store.actionLayers.layer1.completed).toBe(false)
     expect(store.checklist.organizeStatements).toBe(false)
+  })
+
+  it('should_call_deleteImprovementPlan_when_low_score_user_resets', () => {
+    const store = useFunnelStore()
+    store.setScore(45) // 低分用户
+    improvementPlanApi.deleteImprovementPlan.mockClear()
+
+    store.reset()
+
+    expect(improvementPlanApi.deleteImprovementPlan).toHaveBeenCalledTimes(1)
+  })
+
+  it('should_not_call_deleteImprovementPlan_when_normal_user_resets', () => {
+    const store = useFunnelStore()
+    store.setScore(75) // 正常用户
+    improvementPlanApi.deleteImprovementPlan.mockClear()
+
+    store.reset()
+
+    expect(improvementPlanApi.deleteImprovementPlan).not.toHaveBeenCalled()
   })
 })
 
