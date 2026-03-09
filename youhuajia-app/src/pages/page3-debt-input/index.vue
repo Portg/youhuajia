@@ -1,5 +1,6 @@
 <template>
   <view class="page">
+    <FunnelNavBar title="债务录入" />
     <!-- 顶部标题 -->
     <view class="page-header">
       <text class="header-title">录入具体债务，获得精确分析</text>
@@ -223,6 +224,7 @@
 
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
+import FunnelNavBar from '../../components/FunnelNavBar.vue'
 import { useDebtStore } from '../../stores/debt.js'
 import { useProfileStore } from '../../stores/profile.js'
 import { useFunnelStore } from '../../stores/funnel.js'

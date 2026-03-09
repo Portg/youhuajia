@@ -1,5 +1,6 @@
 <template>
   <view class="page">
+    <FunnelNavBar title="利率模拟" />
     <!-- 加载态 -->
     <view v-if="profileStore.loading && !profileStore.profile" class="loading-wrap">
       <text class="loading-text">加载数据中...</text>
@@ -154,6 +155,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useProfileStore } from '../../stores/profile.js'
 import { useFunnelStore } from '../../stores/funnel.js'
 import AnimatedNumber from '../../components/AnimatedNumber.vue'
+import FunnelNavBar from '../../components/FunnelNavBar.vue'
 
 const profileStore = useProfileStore()
 const funnelStore = useFunnelStore()
@@ -326,6 +328,11 @@ function goRisk() {
 }
 
 onMounted(() => {
+  // 低分用户重定向到信用修复路径
+  if (funnelStore.isLowScore) {
+    uni.redirectTo({ url: '/pages/low-score/credit-repair' })
+    return
+  }
   if (!profileStore.profile) {
     profileStore.loadProfile()
   } else {

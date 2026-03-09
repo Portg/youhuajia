@@ -1,5 +1,6 @@
 <template>
   <view class="page8-low-container">
+    <FunnelNavBar title="改善行动" />
     <!-- 顶部进度条 -->
     <view class="top-progress-section">
       <view class="layer-progress-bar">
@@ -134,6 +135,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import FunnelNavBar from '../../components/FunnelNavBar.vue'
 import { useFunnelStore } from '../../stores/funnel'
 
 const funnelStore = useFunnelStore()

@@ -1,5 +1,6 @@
 <template>
   <view class="page8">
+    <FunnelNavBar title="行动计划" />
     <ProgressBar :current="8" :total="9" />
 
     <view class="page-header">
@@ -156,6 +157,7 @@ import { useFunnelStore } from '../../stores/funnel'
 import { useDebtStore } from '../../stores/debt'
 import { generateReport } from '../../api/report'
 import { estimatePreAudit as apiPreAudit } from '../../api/engine'
+import FunnelNavBar from '../../components/FunnelNavBar.vue'
 import ProgressBar from '../../components/ProgressBar.vue'
 import YouhuaButton from '../../components/YouhuaButton.vue'
 import SafeAreaBottom from '../../components/SafeAreaBottom.vue'

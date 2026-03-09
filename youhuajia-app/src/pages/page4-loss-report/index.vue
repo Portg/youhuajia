@@ -1,5 +1,6 @@
 <template>
   <view class="page">
+    <FunnelNavBar title="分析报告" />
     <!-- 加载态 -->
     <view class="loading-wrap" v-if="profileStore.loading">
       <view class="spinner"></view>
@@ -147,6 +148,7 @@ import { computed, onMounted } from 'vue'
 import { useProfileStore } from '../../stores/profile.js'
 import { useFunnelStore } from '../../stores/funnel.js'
 import AnimatedNumber from '../../components/AnimatedNumber.vue'
+import FunnelNavBar from '../../components/FunnelNavBar.vue'
 
 const profileStore = useProfileStore()
 const funnelStore = useFunnelStore()
@@ -191,16 +193,16 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.page { min-height: 100vh; background: #F8FAFE; }
+.page { min-height: 100vh; background: #F8FAFE; display: flex; flex-direction: column; }
 
 /* 加载 / 错误 */
-.loading-wrap,.error-wrap { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; padding: 48rpx; }
+.loading-wrap,.error-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; padding: 48rpx; }
 .spinner { width: 80rpx; height: 80rpx; border: 6rpx solid #D5E8F0; border-top-color: #2E75B6; border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-text,.error-text { font-size: 28rpx; color: #6B7280; text-align: center; }
 .retry-btn { padding: 16rpx 48rpx; background: #2E75B6; color: #fff; border-radius: 40rpx; font-size: 28rpx; border: none; }
 
-.content { height: 100vh; }
+.content { flex: 1; }
 
 /* 冲击区 */
 .impact-block { background: #fff; padding: 56rpx 32rpx 48rpx; display: flex; flex-direction: column; align-items: center; }

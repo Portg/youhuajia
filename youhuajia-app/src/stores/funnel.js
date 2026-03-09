@@ -60,7 +60,20 @@ export const useFunnelStore = defineStore('funnel', () => {
   function setFinanceProfile(profile) {
     financeProfile.value = profile
     if (profile?.restructureScore) {
-      score.value = Number(profile.restructureScore)
+      const newScore = Number(profile.restructureScore)
+      const wasLowScore = score.value > 0 && score.value < 60
+      const willBeLowScore = newScore > 0 && newScore < 60
+
+      // 评分路径变化（低分→正常 或 正常→低分）时重置 actionLayers
+      if (score.value > 0 && wasLowScore !== willBeLowScore) {
+        actionLayers.value = {
+          layer1: { completed: false, reportId: null },
+          layer2: { completed: false },
+          layer3: { completed: false },
+        }
+      }
+
+      score.value = newScore
     }
   }
 

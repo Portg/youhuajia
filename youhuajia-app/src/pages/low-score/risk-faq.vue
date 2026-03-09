@@ -1,36 +1,39 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import { useFunnelStore } from '../../stores/funnel.js'
 import FunnelNavBar from '../../components/FunnelNavBar.vue'
 import ProgressBar from '../../components/ProgressBar.vue'
 import YouhuaButton from '../../components/YouhuaButton.vue'
-import { useFunnelStore } from '../../stores/funnel.js'
+import SafeAreaBottom from '../../components/SafeAreaBottom.vue'
 
-// Q&A 数据（硬编码，每条答案具体不含糊，不说"一般不会"）
+const funnelStore = useFunnelStore()
+
+// 低分用户专属 FAQ（关注信用修复而非申请流程）
 const faqs = ref([
   {
     id: 1,
-    question: '会不会查我的征信？',
-    answer: '优化方案评估阶段不会查询征信。仅在您确认正式申请后，合作金融机构才会在获得您授权的情况下查询。评估阶段您的征信记录不受任何影响。',
-    expanded: false
+    question: '为什么当前不适合直接优化？',
+    answer: '你的信用结构目前有待改善。直接申请可能面临较高利率，反而增加负担。先通过 30 天基础修复，让信用状况回到更有利的位置，届时优化效果会更明显。',
+    expanded: false,
   },
   {
     id: 2,
-    question: '会不会影响我的信用评分？',
-    answer: '方案评估不产生任何征信记录。正式申请阶段的征信查询属于正常贷款申请，影响可控。通常单次查询对评分的影响在 2-5 分以内，且 3 个月后自动恢复。',
-    expanded: false
+    question: '30 天改善计划真的有效吗？',
+    answer: '根据历史数据，坚持按时还款 30 天、控制信用卡使用率在 70% 以下的用户，信用状况普遍有所改善。关键是保持还款纪录的连续性。',
+    expanded: false,
   },
   {
     id: 3,
-    question: '如果方案不适合我怎么办？',
-    answer: '评估阶段完全免费且无风险。如果当前不适合优化，我们会提供免费的信用改善建议，并在条件成熟后（通常 30-90 天）重新为您评估。',
-    expanded: false
+    question: '改善后能达到什么效果？',
+    answer: '完成基础修复后，你可以重新回到优化家评估。如果评分达到 60 分以上，就可以进入利率模拟和方案定制流程，探索更多节省空间。',
+    expanded: false,
   },
   {
     id: 4,
-    question: '需要支付费用吗？',
-    answer: '评估和方案制定完全免费。仅在您确认执行且成功降低利率后，才按实际节省金额的一定比例收取服务费。如果没有节省，不收取任何费用。',
-    expanded: false
-  }
+    question: '这个过程需要付费吗？',
+    answer: '改善计划完全免费。我们提供的还款提醒、评估预约等服务均不收取任何费用。只有在未来成功优化并实际节省后，才会按比例收取服务费。',
+    expanded: false,
+  },
 ])
 
 function toggleFaq(id) {
@@ -40,34 +43,23 @@ function toggleFaq(id) {
   }
 }
 
-const funnelStore = useFunnelStore()
-
-// 低分用户重定向到低分专属 FAQ 页
-onMounted(() => {
-  if (funnelStore.isLowScore) {
-    uni.redirectTo({ url: '/pages/low-score/risk-faq' })
-  }
-})
-
-function goToAction() {
+function goToImprovementPlan() {
   funnelStore.advanceStep(8)
-  uni.navigateTo({ url: '/pages/page8-action-layers/index' })
+  uni.navigateTo({ url: '/pages/low-score/improvement-plan' })
 }
 </script>
 
 <template>
   <view class="page">
-    <FunnelNavBar title="风险评估" />
+    <FunnelNavBar title="常见问题" />
     <ProgressBar :current="7" :total="9" />
 
     <scroll-view class="scroll-content" scroll-y>
-      <!-- 页面标题 -->
       <view class="page-header">
         <text class="page-title">了解常见问题</text>
-        <text class="page-desc">透明告知，让你放心每一步</text>
+        <text class="page-desc">每一步都透明，让你放心行动</text>
       </view>
 
-      <!-- FAQ 列表 -->
       <view class="faq-list">
         <view
           v-for="faq in faqs"
@@ -75,7 +67,6 @@ function goToAction() {
           class="faq-item"
           :class="{ 'faq-expanded': faq.expanded }"
         >
-          <!-- 问题行 -->
           <view class="question-row" @tap="toggleFaq(faq.id)">
             <view class="question-left">
               <view class="question-index">
@@ -88,7 +79,6 @@ function goToAction() {
             </view>
           </view>
 
-          <!-- 答案区 -->
           <view v-show="faq.expanded" class="answer-wrap">
             <view class="answer-divider" />
             <view class="answer-content">
@@ -101,22 +91,21 @@ function goToAction() {
         </view>
       </view>
 
-      <!-- 安心说明 -->
       <view class="assurance-card">
-        <text class="assurance-icon">i</text>
+        <view class="assurance-dot" />
         <text class="assurance-text">
-          以上承诺均受《金融消费者保护条例》约束。评估阶段您保有完整的知情权和退出权。
+          改善计划完全由你掌控节奏，随时可以暂停或重新开始。
         </text>
       </view>
 
       <view class="bottom-spacer" />
     </scroll-view>
 
-    <!-- 底部 CTA -->
     <view class="cta-section">
-      <YouhuaButton text="开始准备" type="primary" @click="goToAction" />
-      <view style="height: env(safe-area-inset-bottom); min-height: 16rpx;" />
+      <YouhuaButton text="开始改善行动" type="primary" @click="goToImprovementPlan" />
     </view>
+
+    <SafeAreaBottom />
   </view>
 </template>
 
@@ -132,7 +121,7 @@ function goToAction() {
 
 .scroll-content {
   flex: 1;
-  padding: 0 $spacing-lg;
+  padding: 0 $spacing-xl;
 }
 
 .page-header {
@@ -161,15 +150,17 @@ function goToAction() {
 }
 
 .faq-item {
-  background: $surface;
-  border-radius: $radius-lg;
+  background-color: $surface;
+  border-radius: $radius-md;
+  padding: $spacing-lg;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   overflow: hidden;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
-  border: 2rpx solid transparent;
-  transition: border-color 0.2s;
+  border: 1rpx solid transparent;
+  transition: border-color 0.3s, box-shadow 0.3s;
 
   &.faq-expanded {
-    border-color: $primary-light;
+    border-color: rgba(27, 109, 178, 0.12);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   }
 }
 
@@ -177,13 +168,8 @@ function goToAction() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: $spacing-lg;
   gap: $spacing-md;
   cursor: pointer;
-
-  &:active {
-    background: $background;
-  }
 }
 
 .question-left {
@@ -194,10 +180,10 @@ function goToAction() {
 }
 
 .question-index {
-  width: 44rpx;
-  height: 44rpx;
-  border-radius: 50%;
-  background: $primary-light;
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: $radius-md;
+  background-color: $primary-light;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -205,7 +191,7 @@ function goToAction() {
 }
 
 .index-text {
-  font-size: 20rpx;
+  font-size: $font-xs;
   font-weight: 700;
   color: $primary;
 }
@@ -220,7 +206,7 @@ function goToAction() {
 
 .chevron {
   transform: rotate(90deg);
-  transition: transform 0.25s ease;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   flex-shrink: 0;
 
   &.chevron-up {
@@ -236,12 +222,12 @@ function goToAction() {
 }
 
 .answer-wrap {
-  padding: 0 $spacing-lg $spacing-lg;
+  padding-top: $spacing-md;
 }
 
 .answer-divider {
-  height: 2rpx;
-  background: $divider;
+  height: 1rpx;
+  background-color: $divider;
   margin-bottom: $spacing-md;
 }
 
@@ -252,10 +238,10 @@ function goToAction() {
 }
 
 .answer-tag {
-  width: 44rpx;
-  height: 44rpx;
-  border-radius: 50%;
-  background: $accent-light;
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: $radius-md;
+  background-color: $accent-light;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -263,7 +249,7 @@ function goToAction() {
 }
 
 .tag-text {
-  font-size: 20rpx;
+  font-size: $font-xs;
   font-weight: 700;
   color: $accent;
 }
@@ -271,13 +257,13 @@ function goToAction() {
 .answer-text {
   font-size: $font-sm;
   color: $text-secondary;
-  line-height: 1.7;
+  line-height: 1.75;
   flex: 1;
 }
 
 .assurance-card {
-  background: $positive-light;
-  border-radius: $radius-lg;
+  background: linear-gradient(135deg, $positive-light, $primary-light);
+  border-radius: $radius-md;
   padding: $spacing-md $spacing-lg;
   display: flex;
   align-items: flex-start;
@@ -285,37 +271,35 @@ function goToAction() {
   margin-bottom: $spacing-md;
 }
 
-.assurance-icon {
-  width: 36rpx;
-  height: 36rpx;
+.assurance-dot {
+  width: 12rpx;
+  height: 12rpx;
   border-radius: 50%;
-  background: $positive;
-  color: #FFFFFF;
-  font-size: 20rpx;
-  font-weight: 700;
-  font-style: italic;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background-color: $positive;
   flex-shrink: 0;
-  text-align: center;
-  line-height: 36rpx;
+  margin-top: 12rpx;
 }
 
 .assurance-text {
   font-size: $font-xs;
   color: $positive;
-  line-height: 1.6;
+  line-height: 1.65;
   flex: 1;
+  font-weight: 500;
 }
 
 .bottom-spacer {
-  height: 120rpx;
+  height: 130rpx;
 }
 
 .cta-section {
-  padding: $spacing-md $spacing-lg;
-  background: #FFFFFF;
-  border-top: 2rpx solid $divider;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: $spacing-md $spacing-xl;
+  padding-bottom: calc(#{$spacing-md} + env(safe-area-inset-bottom));
+  background-color: $surface;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
 }
 </style>

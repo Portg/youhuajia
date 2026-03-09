@@ -1,5 +1,6 @@
 <template>
   <view class="credit-repair">
+    <FunnelNavBar title="信用修复" />
     <ProgressBar :current="6" :total="9" />
 
     <view class="page-header">
@@ -46,19 +47,23 @@
 
     <view class="cta-bar">
       <YouhuaButton
-        text="开始准备"
+        text="了解常见问题"
         type="primary"
-        @click="goToImprovementPlan"
+        @click="goToRiskFaq"
       />
     </view>
   </view>
 </template>
 
 <script setup>
+import { useFunnelStore } from '../../stores/funnel.js'
+import FunnelNavBar from '../../components/FunnelNavBar.vue'
 import ProgressBar from '../../components/ProgressBar.vue'
 import YouhuaButton from '../../components/YouhuaButton.vue'
 import SafeAreaBottom from '../../components/SafeAreaBottom.vue'
 import Timeline from '../page9-companion/components/Timeline.vue'
+
+const funnelStore = useFunnelStore()
 
 // 三个阶段的行动建议
 const phases = [
@@ -91,8 +96,9 @@ const phases = [
   },
 ]
 
-function goToImprovementPlan() {
-  uni.navigateTo({ url: '/pages/low-score/improvement-plan' })
+function goToRiskFaq() {
+  funnelStore.advanceStep(7)
+  uni.navigateTo({ url: '/pages/low-score/risk-faq' })
 }
 </script>
 
@@ -212,7 +218,7 @@ function goToImprovementPlan() {
 .encouragement-text {
   display: block;
   font-size: $font-sm;
-  color: #4b5563;
+  color: $text-secondary;
   line-height: 1.7;
   text-align: center;
 }

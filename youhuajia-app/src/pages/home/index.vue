@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useFunnelStore } from '../../stores/funnel'
 import { useAuthStore } from '../../stores/auth'
@@ -30,6 +30,15 @@ const stepPageMap = {
   9: '/pages/page9-companion/index',
 }
 
+// 低分用户 Step 5-8 走独立路径
+const lowScorePageMap = {
+  5: '/pages/low-score/credit-optimization',
+  6: '/pages/low-score/credit-repair',
+  7: '/pages/low-score/risk-faq',
+  8: '/pages/low-score/improvement-plan',
+  9: '/pages/page9-companion/index',
+}
+
 const stepLabels = {
   1: '开始检查',
   2: '快速检查',
@@ -41,6 +50,23 @@ const stepLabels = {
   8: '行动计划',
   9: '我的进度',
 }
+
+// 低分用户 Step 5-8 走独立路径，标签需对应实际页面
+const lowScoreStepLabels = {
+  5: '信用优化引导',
+  6: '修复路线图',
+  7: '常见问题',
+  8: '改善行动',
+  9: '我的进度',
+}
+
+const currentStepLabel = computed(() => {
+  const step = funnelStore.currentStep
+  if (funnelStore.isLowScore && lowScoreStepLabels[step]) {
+    return lowScoreStepLabels[step]
+  }
+  return stepLabels[step] || '评估中'
+})
 
 // 三态判断
 const state = computed(() => {
@@ -74,6 +100,13 @@ function continueAssessment() {
   // 如果无债务数据但 step 已到 4+，回退到 3
   else if (step >= 4 && debtStore.totalCount === 0) {
     targetStep = 3
+  }
+
+  // 低分用户 Step 5+ 走独立路径
+  if (funnelStore.isLowScore && targetStep >= 5) {
+    const url = lowScorePageMap[targetStep] || lowScorePageMap[5]
+    uni.navigateTo({ url })
+    return
   }
 
   const url = stepPageMap[targetStep] || stepPageMap[1]
@@ -144,7 +177,7 @@ function restartAssessment() {
         <view class="progress-info">
           <view class="info-item">
             <text class="info-label">当前步骤</text>
-            <text class="info-value">{{ stepLabels[funnelStore.currentStep] || '评估中' }}</text>
+            <text class="info-value">{{ currentStepLabel }}</text>
           </view>
           <view v-if="funnelStore.score > 0" class="info-item">
             <text class="info-label">优化评分</text>
@@ -169,9 +202,12 @@ function restartAssessment() {
         <view class="completed-icon-wrap">
           <text class="completed-icon">&#10003;</text>
         </view>
-        <text class="completed-title">评估已完成</text>
-        <text class="completed-subtitle" v-if="funnelStore.score > 0">
+        <text class="completed-title">{{ funnelStore.isLowScore ? '改善计划已生成' : '评估已完成' }}</text>
+        <text class="completed-subtitle" v-if="funnelStore.score > 0 && !funnelStore.isLowScore">
           你的优化评分：{{ funnelStore.score }}分
+        </text>
+        <text class="completed-subtitle" v-else-if="funnelStore.isLowScore">
+          信用改善进行中，坚持 30 天后重新评估
         </text>
       </view>
 

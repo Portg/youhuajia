@@ -16,11 +16,14 @@ const avatarLetter = computed(() => {
   return p ? p.slice(-1) : '?'
 })
 
-const menuItems = [
-  { label: '我的报告', url: '/pages/mine/reports' },
+const menuItems = computed(() => [
+  {
+    label: funnelStore.isLowScore ? '我的改善计划' : '我的报告',
+    url: '/pages/mine/reports',
+  },
   { label: '意见反馈', url: '/pages/mine/feedback' },
   { label: '关于优化家', url: '/pages/mine/about' },
-]
+])
 
 function goTo(url) {
   uni.navigateTo({ url })

@@ -1,14 +1,18 @@
 <template>
   <view class="page9">
+    <FunnelNavBar title="我的进度" />
     <ProgressBar :current="9" :total="9" />
 
     <!-- 完成仪式（首次进入时展示） -->
     <view v-if="showCeremony" class="ceremony-overlay" @tap="dismissCeremony">
       <view class="ceremony-card" @tap.stop>
-        <text class="ceremony-emoji">🎉</text>
-        <text class="ceremony-title">恭喜完成全部评估！</text>
+        <text class="ceremony-emoji">{{ funnelStore.isLowScore ? '💪' : '🎉' }}</text>
+        <text class="ceremony-title">{{ funnelStore.isLowScore ? '改善计划已生成！' : '恭喜完成全部评估！' }}</text>
         <text class="ceremony-desc">
-          你已经比 90% 的人更了解自己的债务状况，接下来按计划执行，每一步都在帮你节省。
+          {{ funnelStore.isLowScore
+            ? '你已经迈出了改善的第一步。按照计划坚持 30 天，信用状况会有明显提升。'
+            : '你已经比 90% 的人更了解自己的债务状况，接下来按计划执行，每一步都在帮你节省。'
+          }}
         </text>
         <view v-if="funnelStore.score > 0" class="ceremony-score">
           <text class="ceremony-score-label">优化评分</text>
@@ -16,19 +20,19 @@
           <text class="ceremony-score-unit">分</text>
         </view>
         <view class="ceremony-btn" @tap="dismissCeremony">
-          <text class="ceremony-btn-text">开始行动</text>
+          <text class="ceremony-btn-text">{{ funnelStore.isLowScore ? '查看计划' : '开始行动' }}</text>
         </view>
       </view>
     </view>
 
     <!-- 顶部正面强化 -->
     <view class="hero">
-      <text class="headline">你已经迈出了第一步</text>
-      <text class="hero-sub">持续关注，每个月都会有改善</text>
+      <text class="headline">{{ funnelStore.isLowScore ? '信用改善计划已启动' : '你已经迈出了第一步' }}</text>
+      <text class="hero-sub">{{ funnelStore.isLowScore ? '坚持 30 天，信用状况会有明显提升' : '持续关注，每个月都会有改善' }}</text>
     </view>
 
-    <!-- 目标进度卡片 -->
-    <view class="goal-card">
+    <!-- 目标进度卡片 — 正常用户：节省金额 -->
+    <view v-if="!funnelStore.isLowScore" class="goal-card">
       <view class="goal-row">
         <view class="goal-item">
           <text class="goal-label">预估可节省</text>
@@ -53,9 +57,35 @@
       </view>
     </view>
 
+    <!-- 目标进度卡片 — 低分用户：信用改善进度 -->
+    <view v-else class="goal-card">
+      <view class="goal-row">
+        <view class="goal-item">
+          <text class="goal-label">当前评分</text>
+          <text class="goal-value accent">{{ funnelStore.score }}分</text>
+        </view>
+        <view class="goal-divider" />
+        <view class="goal-item">
+          <text class="goal-label">目标评分</text>
+          <text class="goal-value primary">60分</text>
+        </view>
+      </view>
+      <view class="goal-progress-wrap">
+        <view class="goal-progress-track">
+          <view class="goal-progress-fill" :style="{ width: lowScoreProgress + '%' }" />
+        </view>
+        <text class="goal-progress-text">{{ lowScoreProgress }}%</text>
+      </view>
+
+      <view class="steps-row">
+        <view class="step-dot" v-for="i in 3" :key="i" :class="{ 'step-done': i <= funnelStore.completedLayerCount }" />
+        <text class="steps-label">改善进度 {{ funnelStore.completedLayerCount }}/3 步</text>
+      </view>
+    </view>
+
     <!-- 30/60/90 天进度时间轴 -->
     <view class="section-card">
-      <text class="section-title">你的优化进度</text>
+      <text class="section-title">{{ funnelStore.isLowScore ? '信用改善进度' : '你的优化进度' }}</text>
       <Timeline
         :milestones="[30, 60, 90]"
         :current-day="currentDay"
@@ -64,38 +94,71 @@
 
     <!-- 可勾选 Checklist -->
     <view class="section-card">
-      <text class="section-title">今日行动清单</text>
+      <text class="section-title">{{ funnelStore.isLowScore ? '信用改善清单' : '今日行动清单' }}</text>
 
       <!-- 空状态引导（首次到达时） -->
       <view v-if="completedCount === 0" class="empty-guide">
-        <text class="empty-guide-text">从第一项开始，逐步完成清单。每勾选一项都在帮你改善财务状况。</text>
+        <text class="empty-guide-text">{{ funnelStore.isLowScore
+          ? '从第一项开始，坚持 30 天后重新评估，信用状况会有提升。'
+          : '从第一项开始，逐步完成清单。每勾选一项都在帮你改善财务状况。'
+        }}</text>
       </view>
 
       <view class="checklist">
-        <ChecklistItem
-          text="整理所有账单"
-          tip="了解每笔债务的还款日和金额"
-          :checked="checklist.organizeStatements"
-          @update:checked="(v) => funnelStore.toggleChecklistItem('organizeStatements')"
-        />
-        <ChecklistItem
-          text="确认各债务最低还款日"
-          tip="避免逾期是改善信用的第一步"
-          :checked="checklist.confirmPaymentDates"
-          @update:checked="(v) => funnelStore.toggleChecklistItem('confirmPaymentDates')"
-        />
-        <ChecklistItem
-          :text="'优先偿还 ' + highestAprCreditor"
-          tip="高利率债务节省效果最显著"
-          :checked="checklist.prioritizeHighApr"
-          @update:checked="(v) => funnelStore.toggleChecklistItem('prioritizeHighApr')"
-        />
-        <ChecklistItem
-          text="30天后重新评估"
-          tip="看看改善了多少，调整下一步方向"
-          :checked="checklist.reassessIn30Days"
-          @update:checked="(v) => funnelStore.toggleChecklistItem('reassessIn30Days')"
-        />
+        <!-- 低分用户：信用修复导向清单 -->
+        <template v-if="funnelStore.isLowScore">
+          <ChecklistItem
+            text="整理所有账单，确认还款日"
+            tip="清晰了解每笔债务是改善的第一步"
+            :checked="checklist.organizeStatements"
+            @update:checked="() => funnelStore.toggleChecklistItem('organizeStatements')"
+          />
+          <ChecklistItem
+            text="补齐逾期，恢复按时还款"
+            tip="连续按时还款是改善信用最有效的方式"
+            :checked="checklist.confirmPaymentDates"
+            @update:checked="() => funnelStore.toggleChecklistItem('confirmPaymentDates')"
+          />
+          <ChecklistItem
+            text="信用卡使用率降至 70% 以下"
+            tip="降低使用率有助于提升信用评分"
+            :checked="checklist.prioritizeHighApr"
+            @update:checked="() => funnelStore.toggleChecklistItem('prioritizeHighApr')"
+          />
+          <ChecklistItem
+            text="30 天后重新评估"
+            tip="回到优化家查看改善幅度，规划下一步"
+            :checked="checklist.reassessIn30Days"
+            @update:checked="() => funnelStore.toggleChecklistItem('reassessIn30Days')"
+          />
+        </template>
+        <!-- 正常用户：优化导向清单 -->
+        <template v-else>
+          <ChecklistItem
+            text="整理所有账单"
+            tip="了解每笔债务的还款日和金额"
+            :checked="checklist.organizeStatements"
+            @update:checked="() => funnelStore.toggleChecklistItem('organizeStatements')"
+          />
+          <ChecklistItem
+            text="确认各债务最低还款日"
+            tip="避免逾期是改善信用的第一步"
+            :checked="checklist.confirmPaymentDates"
+            @update:checked="() => funnelStore.toggleChecklistItem('confirmPaymentDates')"
+          />
+          <ChecklistItem
+            :text="'优先偿还 ' + highestAprCreditor"
+            tip="高利率债务节省效果最显著"
+            :checked="checklist.prioritizeHighApr"
+            @update:checked="() => funnelStore.toggleChecklistItem('prioritizeHighApr')"
+          />
+          <ChecklistItem
+            text="30天后重新评估"
+            tip="看看改善了多少，调整下一步方向"
+            :checked="checklist.reassessIn30Days"
+            @update:checked="() => funnelStore.toggleChecklistItem('reassessIn30Days')"
+          />
+        </template>
       </view>
 
       <!-- Checklist 进度条 -->
@@ -140,6 +203,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useFunnelStore } from '../../stores/funnel'
 import { useDebtStore } from '../../stores/debt'
 import { useProfileStore } from '../../stores/profile'
+import FunnelNavBar from '../../components/FunnelNavBar.vue'
 import ProgressBar from '../../components/ProgressBar.vue'
 import YouhuaButton from '../../components/YouhuaButton.vue'
 import SafeAreaBottom from '../../components/SafeAreaBottom.vue'
@@ -193,6 +257,12 @@ const savingProgress = computed(() => {
   return Math.min(100, Math.round((estimatedSaving.value / targetSaving.value) * 100))
 })
 
+// 低分用户：评分进度（当前评分 / 60 目标分）
+const lowScoreProgress = computed(() => {
+  if (funnelStore.score <= 0) return 0
+  return Math.min(100, Math.round((funnelStore.score / 60) * 100))
+})
+
 // 行动步骤完成数（漏斗 layer 1-3 + checklist 全部完成算第4步）
 const actionStepsCompleted = computed(() => {
   let steps = funnelStore.completedLayerCount // 0-3
@@ -227,7 +297,7 @@ function setReminder() {
     title: '设置检查点提醒',
     content: `将在 ${daysToNext.value} 天后提醒你进行下一次评估`,
     confirmText: '确认设置',
-    confirmColor: '#2E75B6',
+    confirmColor: '#1B6DB2',
     success: (res) => {
       if (res.confirm) {
         uni.showToast({ title: '提醒已设置', icon: 'success', duration: 2000 })
@@ -454,7 +524,7 @@ function setReminder() {
 .reminder-desc {
   display: block;
   font-size: $font-sm;
-  color: #4b5563;
+  color: $text-secondary;
   line-height: 1.5;
   margin-bottom: $spacing-md;
 }

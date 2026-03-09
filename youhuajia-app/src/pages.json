@@ -3,7 +3,6 @@
     {
       "path": "pages/home/index",
       "style": {
-        "navigationBarTitleText": "优化家",
         "navigationStyle": "custom",
         "backgroundColor": "#F8FAFE"
       }
@@ -19,7 +18,6 @@
     {
       "path": "pages/page1-safe-entry/index",
       "style": {
-        "navigationBarTitleText": "",
         "navigationStyle": "custom",
         "backgroundColor": "#F8FAFE"
       }
@@ -27,23 +25,20 @@
     {
       "path": "pages/page2-pressure-check/index",
       "style": {
-        "navigationBarTitleText": "快速检查",
-        "navigationBarBackgroundColor": "#FFFFFF",
-        "navigationBarTextStyle": "black"
+        "navigationStyle": "custom",
+        "backgroundColor": "#F8FAFE"
       }
     },
     {
       "path": "pages/page3-debt-input/index",
       "style": {
-        "navigationBarTitleText": "债务录入",
-        "navigationBarBackgroundColor": "#FFFFFF",
-        "navigationBarTextStyle": "black"
+        "navigationStyle": "custom",
+        "backgroundColor": "#F8FAFE"
       }
     },
     {
       "path": "pages/page4-loss-report/index",
       "style": {
-        "navigationBarTitleText": "分析报告",
         "navigationStyle": "custom",
         "backgroundColor": "#F8FAFE"
       }
@@ -51,15 +46,13 @@
     {
       "path": "pages/page5-optimization/index",
       "style": {
-        "navigationBarTitleText": "优化空间",
-        "navigationBarBackgroundColor": "#FFFFFF",
-        "navigationBarTextStyle": "black"
+        "navigationStyle": "custom",
+        "backgroundColor": "#F8FAFE"
       }
     },
     {
       "path": "pages/page6-rate-simulator/index",
       "style": {
-        "navigationBarTitleText": "利率模拟",
         "navigationStyle": "custom",
         "backgroundColor": "#F8FAFE"
       }
@@ -67,25 +60,22 @@
     {
       "path": "pages/page7-risk-assessment/index",
       "style": {
-        "navigationBarTitleText": "风险评估",
-        "navigationBarBackgroundColor": "#FFFFFF",
-        "navigationBarTextStyle": "black"
+        "navigationStyle": "custom",
+        "backgroundColor": "#F8FAFE"
       }
     },
     {
       "path": "pages/page8-action-layers/index",
       "style": {
-        "navigationBarTitleText": "行动计划",
-        "navigationBarBackgroundColor": "#FFFFFF",
-        "navigationBarTextStyle": "black"
+        "navigationStyle": "custom",
+        "backgroundColor": "#F8FAFE"
       }
     },
     {
       "path": "pages/page9-companion/index",
       "style": {
-        "navigationBarTitleText": "我的进度",
-        "navigationBarBackgroundColor": "#FFFFFF",
-        "navigationBarTextStyle": "black"
+        "navigationStyle": "custom",
+        "backgroundColor": "#F8FAFE"
       }
     },
     {
@@ -98,22 +88,37 @@
     },
     {
       "path": "pages/low-score/credit-optimization",
-      "style": { "navigationBarTitleText": "信用优化" }
+      "style": {
+        "navigationStyle": "custom",
+        "backgroundColor": "#F8FAFE"
+      }
     },
     {
       "path": "pages/low-score/credit-repair",
-      "style": { "navigationBarTitleText": "信用修复" }
+      "style": {
+        "navigationStyle": "custom",
+        "backgroundColor": "#F8FAFE"
+      }
     },
     {
       "path": "pages/low-score/improvement-plan",
-      "style": { "navigationBarTitleText": "改善计划" }
+      "style": {
+        "navigationStyle": "custom",
+        "backgroundColor": "#F8FAFE"
+      }
+    },
+    {
+      "path": "pages/low-score/risk-faq",
+      "style": {
+        "navigationStyle": "custom",
+        "backgroundColor": "#F8FAFE"
+      }
     },
     {
       "path": "pages/page8-action-layers/index-low-score",
       "style": {
-        "navigationBarTitleText": "改善行动",
-        "navigationBarBackgroundColor": "#FFFFFF",
-        "navigationBarTextStyle": "black"
+        "navigationStyle": "custom",
+        "backgroundColor": "#F8FAFE"
       }
     },
     {

@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import FunnelNavBar from '../../components/FunnelNavBar.vue'
 import ProgressBar from '../../components/ProgressBar.vue'
 import YouhuaButton from '../../components/YouhuaButton.vue'
 import PressureGauge from './components/PressureGauge.vue'
@@ -107,6 +108,7 @@ function goToDebts() {
 
 <template>
   <view class="page">
+    <FunnelNavBar title="快速检查" />
     <ProgressBar :current="2" :total="9" />
 
     <scroll-view class="scroll-content" scroll-y>

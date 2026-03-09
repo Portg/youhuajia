@@ -1,5 +1,6 @@
 <template>
   <view class="page5">
+    <FunnelNavBar title="优化空间" />
     <ProgressBar :current="5" :total="9" />
 
     <!-- 正面标题：第一句话必须正面（$positive #2BAF7E） -->
@@ -74,6 +75,7 @@
 import { computed, onMounted } from 'vue'
 import { useFunnelStore } from '../../stores/funnel'
 import { useDebtStore } from '../../stores/debt'
+import FunnelNavBar from '../../components/FunnelNavBar.vue'
 import ProgressBar from '../../components/ProgressBar.vue'
 import YouhuaButton from '../../components/YouhuaButton.vue'
 import SafeAreaBottom from '../../components/SafeAreaBottom.vue'
