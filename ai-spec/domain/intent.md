@@ -73,9 +73,12 @@
 
 ## 用户分群策略
 
+> 匹配优先级：HIGH_DEBT > MORTGAGE_HEAVY > YOUNG_BORROWER > DEFAULT
+> 权威来源：`engine/scoring-model.md` 第三节 + `engine/strategies/*.meta.yml`
+
 | 分群 | 识别条件 | 策略差异 |
 |------|----------|----------|
-| HIGH_DEBT | 负债收入比 > 0.5 | 优先展示月供压力缓解方案 |
-| MORTGAGE_HEAVY | 房贷占总债务 > 60% | 弱化房贷（无法优化），聚焦消费贷 |
-| YOUNG_BORROWER | 年龄 < 28 且债务笔数 > 3 | 强调信用积累，温和引导 |
-| DEFAULT | 其他 | 标准五维评分流程 |
+| HIGH_DEBT | 负债收入比 > 0.70 或负债笔数 >= 5 | DIR 权重 0.35（↑），7 档细粒度 DIR 分段，优先展示月供压力缓解方案 |
+| MORTGAGE_HEAVY | 房贷笔数占总负债 > 50% | LIQ/CST 权重提升，DIR 权重降低，弱化房贷（无法优化），聚焦消费贷 |
+| YOUNG_BORROWER | 负债笔数 <= 2 且平均借贷天数 < 365 | CST 权重 0.15（↑），鼓励性语调，强调信用积累 |
+| DEFAULT | 以上都不命中 | 标准五维评分流程，均衡考虑各维度 |

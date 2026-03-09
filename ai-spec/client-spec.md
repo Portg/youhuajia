@@ -35,10 +35,14 @@ Vue 3.4 + uni-app 3.0 (alpha)
 
 ## 二、项目结构
 
+> **重要**：`src/` 是 uni-app vite 插件的默认 inputDir（`UNI_INPUT_DIR = path.resolve(root, 'src')`）。
+> 所有页面、路由配置、入口文件均在 `src/` 下，项目根目录不应存在 pages.json、main.js、App.vue 等重复文件。
+
 ```
 youhuajia-app/
 ├── package.json                           # 依赖管理
 ├── vite.config.js                         # Vite 构建配置 + H5 代理
+├── index.html                             # Vite 入口（引用 /src/main.js）
 │
 └── src/
     ├── main.js                            # 入口：createSSRApp + Pinia 挂载
@@ -69,10 +73,11 @@ youhuajia-app/
     │   │   ├── index.vue
     │   │   └── components/
     │   │       └── ConsultCard.vue        # 咨询意向卡片
-    │   ├── low-score/                     # 评分 < 60 特殊路径
-    │   │   ├── credit-optimization.vue    # 替代 Page 5
-    │   │   ├── credit-repair.vue          # 替代 Page 6
-    │   │   └── improvement-plan.vue       # 替代 Page 8
+    │   ├── low-score/                     # 评分 < 60 特殊路径（5 页独立流程）
+    │   │   ├── credit-optimization.vue    # Step 5: 信用优化引导
+    │   │   ├── credit-repair.vue          # Step 6: 信用修复路线图
+    │   │   ├── risk-faq.vue               # Step 7: 低分专属 FAQ
+    │   │   └── improvement-plan.vue       # Step 8: 30 天改善行动
     │   ├── terms/index.vue                # 用户服务协议
     │   └── privacy/index.vue              # 隐私保护说明
     │
@@ -103,6 +108,9 @@ youhuajia-app/
     ├── styles/                            # 设计系统
     │   ├── variables.scss                 # 色彩、间距、圆角、字号、阴影、动效、毛玻璃
     │   └── mixins.scss                    # glass-card, card, page-bg, press-effect, input-field 等
+    │
+    ├── utils/                             # 工具函数
+    │   └── scoreSimulator.js              # 客户端评分模拟器（五维评分 + What-if + 分群匹配）
     │
     └── static/                            # 静态资源
         └── tab/                           # TabBar 图标
@@ -160,9 +168,10 @@ uni.navigateBack()
 ║  pages/page8-action-layers/index-low-score ║ "改善行动"    ║ Page 8 低分路径    ║
 ║  pages/page9-companion/index           ║ "我的进度"        ║ Page 9 持续陪伴    ║
 ╠════════════════════════════════════════╬═══════════════════╬═══════════════════╣
-║  pages/low-score/credit-optimization   ║ "信用优化"        ║ 替代 Page 5       ║
-║  pages/low-score/credit-repair         ║ "信用修复"        ║ 替代 Page 6       ║
-║  pages/low-score/improvement-plan      ║ "改善计划"        ║ 替代 Page 8       ║
+║  pages/low-score/credit-optimization   ║ "信用优化"        ║ 低分 Step 5       ║
+║  pages/low-score/credit-repair         ║ "信用修复"        ║ 低分 Step 6       ║
+║  pages/low-score/risk-faq              ║ "常见问题"        ║ 低分 Step 7       ║
+║  pages/low-score/improvement-plan      ║ "改善计划"        ║ 低分 Step 8       ║
 ╠════════════════════════════════════════╬═══════════════════╬═══════════════════╣
 ║  pages/terms/index                     ║ "用户服务协议"    ║ 协议页             ║
 ║  pages/privacy/index                   ║ "隐私保护说明"    ║ 隐私页             ║
@@ -673,9 +682,9 @@ API 调用:
 CTA: "了解风险"
   @click → uni.navigateTo('/pages/page7-risk-assessment/index')
 
-评分 < 60 分支:
-  在 Page 4 已经路由到 /pages/low-score/credit-repair
-  替代利率模拟器，展示信用修复路线图
+低分路由守卫:
+  onMounted 检测 funnelStore.isLowScore → uni.redirectTo('/pages/low-score/credit-repair')
+  防止低分用户通过 URL 直接访问利率模拟器
 ```
 
 ### Page 7 -- 风险评估
@@ -709,8 +718,11 @@ FAQ 数据:
   - 不说"一般不会"，说"在XX情况下不会"
 
 CTA: "开始准备"
-  @click → score >= 60 → '/pages/page8-action-layers/index'
-           score < 60  → '/pages/page8-action-layers/index-low-score'
+  @click → uni.navigateTo('/pages/page8-action-layers/index')
+
+低分路由守卫:
+  onMounted 检测 funnelStore.isLowScore → uni.redirectTo('/pages/low-score/risk-faq')
+  防止低分用户通过 URL 直接访问正常流程风险评估
 ```
 
 ### Page 8 -- 分层行动
@@ -825,6 +837,49 @@ Props: dimensions(数组，默认五维), size(280), strokeColor, fillColor
 文件: components/SafeAreaBottom.vue
 作用: 底部安全区占位（iPhone 底部横条）
 高度: env(safe-area-inset-bottom)，最小 32rpx
+```
+
+### 工具函数：scoreSimulator.js
+
+```
+文件: utils/scoreSimulator.js
+职责: 客户端离线评分模拟，复用 scoring-model.md 第五节 fallback 逻辑
+依赖: 无外部依赖（纯函数）
+关联: ai-spec/engine/strategies/*.meta.yml（权重和分段规则的数据来源）
+
+导出函数:
+  - matchSegment(input)
+      匹配用户分群，优先级 HIGH_DEBT > MORTGAGE_HEAVY > YOUNG_BORROWER > DEFAULT
+      HIGH_DEBT:      debtIncomeRatio > 0.70 OR debtCount >= 5
+      MORTGAGE_HEAVY: mortgageCount / debtCount > 50%
+      YOUNG_BORROWER: debtCount <= 2 AND avgLoanDays < 365
+
+  - calculateScore(input, segment?)
+      五维加权评分，返回 { finalScore, segment, dimensions, weakDimensions }
+      segment 不传则自动调用 matchSegment
+      HIGH_DEBT 分群使用 7 档细粒度 DIR 评分（其他分群 5 档）
+
+  - simulateImprovement(input, improvements)
+      What-if 模拟，支持 4 种操作:
+        CATCH_UP_PAYMENTS  — 补齐逾期
+        REDUCE_UTILIZATION — 降低使用率（DIR 改善 15%）
+        PAY_OFF_SMALLEST   — 还清最小额（debtCount - 1）
+        REDUCE_APR         — 置换高利率（APR 改善 20%）
+      返回 { current, simulated, scoreDelta, dimChanges }
+
+  - buildScoreInput(profileStore, funnelStore, debtStore)
+      从 store 数据构造评分输入（含 mortgageCount 用于分群匹配）
+
+四组分群权重（对应 strategies/*.meta.yml）:
+  DEFAULT:        DIR=0.30 APR=0.25 LIQ=0.15 OVD=0.20 CST=0.10
+  HIGH_DEBT:      DIR=0.35 APR=0.20 LIQ=0.15 OVD=0.20 CST=0.10
+  MORTGAGE_HEAVY: DIR=0.25 APR=0.20 LIQ=0.20 OVD=0.20 CST=0.15
+  YOUNG_BORROWER: DIR=0.30 APR=0.20 LIQ=0.15 OVD=0.20 CST=0.15
+
+使用场景:
+  - credit-optimization.vue: 弱项维度诊断 + 个性化 30 天计划
+  - improvement-plan.vue:    改善后预估分数 + 维度变化明细
+  - 未来可扩展到 Page 5/Page 8 正常流程
 ```
 
 ---
@@ -1099,6 +1154,7 @@ SCSS 变量: kebab-case 带 $ 前缀（$primary, $spacing-md, $font-xl）
 | API 层 | contracts/openapi.yaml | 全部接口覆盖 |
 | 色彩约束 | user-journey.md 第六章 | 禁止表达 -> 禁止颜色 |
 | 评分分支 | engine/scoring-model.md | score < 60 走特殊路径 |
+| 分群权重 | engine/strategies/*.meta.yml | scoreSimulator 四组权重来源 |
 | 文案约束 | user-journey.md 第六章 | CTA 按钮文案严格遵循 |
 | 数据模型 | domain/entities.md | API 响应 1:1 对应 |
 | 错误处理 | contracts/error-codes.md | request.js 统一映射 |

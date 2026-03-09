@@ -296,7 +296,67 @@
 
 ---
 
-## 二、OCR Mock 数据
+## 二、三种用户的漏斗页面路由表
+
+> 根据评分不同，Step 5-8 走不同页面路径。Step 1-4 和 Step 9 共享。
+
+```
+╔══════╦══════════════════════════════════════════════════════════════════════════════════╗
+║ Step ║  用户A（82分）/ 用户B（62分）          ║  用户C（22分，低分路径）                    ║
+║      ║  正常流程（score >= 60）                ║  低分流程（score < 60）                     ║
+╠══════╬═══════════════════════════════════════╬════════════════════════════════════════════╣
+║  1   ║ pages/page1-safe-entry/index          ║ （共享）                                    ║
+║  2   ║ pages/page2-pressure-check/index      ║ （共享）                                    ║
+║  3   ║ pages/page3-debt-input/index          ║ （共享）                                    ║
+║  4   ║ pages/page4-loss-report/index         ║ （共享，CTA 导航到不同 Step 5）              ║
+╠══════╬═══════════════════════════════════════╬════════════════════════════════════════════╣
+║  5   ║ pages/page5-optimization/index        ║ pages/low-score/credit-optimization        ║
+║      ║ "好消息是，你有优化空间"                ║ "当前更适合优化信用结构"                      ║
+╠══════╬═══════════════════════════════════════╬════════════════════════════════════════════╣
+║  6   ║ pages/page6-rate-simulator/index      ║ pages/low-score/credit-repair              ║
+║      ║ 利率模拟器（滑块交互）                  ║ 信用修复路线图（30/60/90天）                  ║
+║      ║ ⚠ onMounted 低分守卫 → redirect       ║                                             ║
+╠══════╬═══════════════════════════════════════╬════════════════════════════════════════════╣
+║  7   ║ pages/page7-risk-assessment/index     ║ pages/low-score/risk-faq                   ║
+║      ║ 正常流程 FAQ（征信/评分/费用）          ║ 低分专属 FAQ（为什么不适合/30天有效吗/效果/费用）║
+║      ║ ⚠ onMounted 低分守卫 → redirect       ║                                             ║
+╠══════╬═══════════════════════════════════════╬════════════════════════════════════════════╣
+║  8   ║ pages/page8-action-layers/index       ║ pages/low-score/improvement-plan           ║
+║      ║ 四层递进（资料清单/整理/预审/提交）      ║ 三层递进（改善计划/还款提醒/预约评估）         ║
+╠══════╬═══════════════════════════════════════╬════════════════════════════════════════════╣
+║  9   ║ pages/page9-companion/index           ║ （共享）                                    ║
+╚══════╩═══════════════════════════════════════╩════════════════════════════════════════════╝
+```
+
+### 首页 continueAssessment() 路由映射
+
+```javascript
+// 正常流程
+const stepPageMap = {
+  1: '/pages/page1-safe-entry/index',
+  2: '/pages/page2-pressure-check/index',
+  3: '/pages/page3-debt-input/index',
+  4: '/pages/page4-loss-report/index',
+  5: '/pages/page5-optimization/index',
+  6: '/pages/page6-rate-simulator/index',
+  7: '/pages/page7-risk-assessment/index',
+  8: '/pages/page8-action-layers/index',
+  9: '/pages/page9-companion/index',
+}
+
+// 低分用户 Step 5-8 走独立路径
+const lowScorePageMap = {
+  5: '/pages/low-score/credit-optimization',
+  6: '/pages/low-score/credit-repair',
+  7: '/pages/low-score/risk-faq',
+  8: '/pages/low-score/improvement-plan',
+  9: '/pages/page9-companion/index',
+}
+```
+
+---
+
+## 三、OCR Mock 数据
 
 ### 成功场景 — 借款合同
 

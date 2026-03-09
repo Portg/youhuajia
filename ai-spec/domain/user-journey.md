@@ -57,6 +57,29 @@ TabBar 配色：未选中 `#94A3B8`，选中 `#1B6DB2`，白色背景。
   - 次要按钮："重新评估" → 重置漏斗，跳转 Page 1
 ```
 
+### 漏斗页退出机制
+
+漏斗页（Page 1-9）导航栏左侧提供"首页"图标按钮，允许用户随时中断退出。
+
+```
+交互规则：
+  - 位置：导航栏左侧，紧邻返回箭头右侧
+  - 图标：小房子（home）图标
+  - 点击行为：uni.switchTab({ url: '/pages/home/index' })
+  - 无需二次确认弹窗（数据已通过 Pinia unistorage 自动持久化）
+  - switchTab 会自动清空漏斗页面栈，无内存泄漏风险
+
+恢复路径：
+  - 回到首页后进入 "inProgress" 态
+  - 用户点击"继续评估" → continueAssessment() 数据感知跳转
+  - 直接恢复到中断步骤（含低分路径适配）
+
+设计约束：
+  - 首页图标不得比返回箭头更醒目（不鼓励退出，但保留出口）
+  - Page 1 可以不显示首页图标（返回即可回首页）
+  - 所有漏斗页已有的 CTA 按钮和底部布局不受影响
+```
+
 ### Onboarding 引导页
 
 首次打开应用时展示（通过 `onboardingDone` 本地存储标记控制，仅触发一次）。
@@ -422,20 +445,133 @@ ConsultCard — 咨询预约组件：
 ```
 ⚠️ 绝对不能让这类用户"申请失败"
 
-替代方案：
-  Page 5 展示："当前更适合优化信用结构"
-  Page 6 展示："信用修复路线图"（替代利率模拟器）
-  Page 8 变为：
-    第一层：生成 30 天改善计划
-    第二层：设置还款提醒
-    第三层：30 天后重新评估
-
 心理逻辑：
   一次"申请失败"的体验 → 永远流失
   一次"暂时不适合，但有路径"的体验 → 30天后回来
 
 产品指标：
   评分 < 60 用户的 30 天回访率 > 40%（目标）
+
+判定条件：
+  funnel store 中 score > 0 && score < 60（isLowScore computed）
+
+路由守卫：
+  正常流程 Page 6（rate-simulator）onMounted 检测低分 → redirectTo credit-repair
+  正常流程 Page 7（risk-assessment）onMounted 检测低分 → redirectTo risk-faq
+  首页 continueAssessment() 中 Step 5-8 使用 lowScorePageMap 导航
+```
+
+### 低分流程完整页面流转
+
+```
+credit-optimization[Step5] → credit-repair[Step6] → risk-faq[Step7] → improvement-plan[Step8] → page9-companion[Step9]
+```
+
+每个低分页面与正常流程同编号（5→6→7→8→9），进度条保持一致，不跳号。
+
+### Low-Score Step 5 → 信用优化引导（credit-optimization）
+
+```
+页面路径：pages/low-score/credit-optimization
+心理阶段：想改变但被告知"暂时不适合"（最易流失）
+页面目标：把"不适合"转为"有路径"
+
+第一句话必须是正面的：
+  "当前更适合优化信用结构。"
+
+展示内容：
+  - 正面强调卡片："信用状况有提升空间"
+  - 30 天行动计划预览（4 周，每周一个小任务）
+  - 鼓励文案："通过调整后有机会改善财务状况"
+
+设计约束：
+  - 绝对禁止"申请失败""不符合条件"（F-13）
+  - 绝不给"0% 成功率"，最低也是"通过调整后有机会改善"
+  - 主色调用 $positive（绿色），传递正面情绪
+  - CTA = "查看改善方案" → credit-repair
+
+漏斗步进：advanceStep(6) 后导航
+```
+
+### Low-Score Step 6 → 信用修复路线图（credit-repair）
+
+```
+页面路径：pages/low-score/credit-repair
+心理阶段：愿意尝试改善
+页面目标：给具体路径，建立行动信心
+
+展示内容：
+  - 30/60/90 天时间轴（复用 page9 的 Timeline 组件）
+  - 三阶段详细行动建议：
+    30天 基础修复：补齐逾期、降低使用率、整理债务
+    60天 结构优化：偿还小额账户、调整还款顺序、避免新查询
+    90天 重新评估：回到优化家重新评分、决定下一步
+  - 鼓励文案："调整节奏由你决定，每一步都算数"
+
+设计约束：
+  - 不使用恐慌性表达（F-11）
+  - CTA = "了解常见问题" → risk-faq
+
+漏斗步进：advanceStep(7) 后导航
+```
+
+### Low-Score Step 7 → 低分专属 FAQ（risk-faq）
+
+```
+页面路径：pages/low-score/risk-faq
+心理阶段：犹豫——"这真的有用吗？"
+页面目标：解答疑虑，消除不确定性
+
+4 个低分专属 Q&A（与正常流程 Page 7 的 FAQ 完全不同）：
+  Q1: 为什么当前不适合直接优化？
+  Q2: 30 天改善计划真的有效吗？
+  Q3: 改善后能达到什么效果？
+  Q4: 这个过程需要付费吗？
+
+交互：
+  - 折叠式 Q&A，点击展开/收起
+  - 底部安心卡片："改善计划完全由你掌控节奏"
+  - CTA = "开始改善行动" → improvement-plan
+
+设计约束：
+  - 每个答案具体、不含糊（不说"一般""可能"）
+  - Q4 必须明确"改善计划完全免费"
+
+漏斗步进：advanceStep(8) 后导航
+```
+
+### Low-Score Step 8 → 30 天改善行动（improvement-plan）
+
+```
+页面路径：pages/low-score/improvement-plan
+心理阶段：准备行动
+页面目标：把"大改善"拆成"小步骤"
+
+三层递进（复用 page8 的 ActionLayer/LayerProgress 组件）：
+  第一层：生成 30 天改善计划
+    → 调用 simulateScore API 记录行为（失败时降级到静态数据）
+    → 输出：分周改善计划
+  第二层：设置还款提醒
+    → 弹窗确认，模拟设置提醒
+  第三层：30 天后重新评估
+    → 弹窗确认，预约评估
+
+设计约束：
+  - 每层都有"暂不继续"出口（onSkip 弹窗，进度已保存）
+  - 完成至少 1 层后才能跳转 Page 9
+  - Modal 确认色统一 $primary
+  - CTA = "查看我的行动计划" → page9-companion
+
+漏斗步进：advanceStep(9) 后导航
+```
+
+### Low-Score Step 9 → 持续陪伴（共享 page9-companion）
+
+```
+与正常流程共享 Page 9，低分用户同样获得：
+  - 行动计划 checklist
+  - 30/60/90 天检查点
+  - ConsultCard 咨询预约
 ```
 
 ---
