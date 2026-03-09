@@ -37,4 +37,10 @@ public class FinanceProfileResponse {
     private String highestAprCreditor;
     /** APR > 24% 的高息债务笔数（用于 Page4 展示） */
     private Integer highInterestDebtCount;
+    /** 逾期笔数（前端 scoreSimulator CATCH_UP_PAYMENTS 模拟用） */
+    private Integer overdueCount;
+    /** 最大逾期天数（前端 scoreSimulator 分档评分用） */
+    private Integer maxOverdueDays;
+    /** 房贷笔数（前端分群匹配 MORTGAGE_HEAVY 用） */
+    private Integer mortgageCount;
 }

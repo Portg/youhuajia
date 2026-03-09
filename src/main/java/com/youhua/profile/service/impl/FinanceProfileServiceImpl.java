@@ -9,6 +9,7 @@ import com.youhua.common.util.IncomeCalculator;
 import com.youhua.common.util.RequestContextUtil;
 import com.youhua.debt.entity.Debt;
 import com.youhua.debt.enums.DebtStatus;
+import com.youhua.debt.enums.DebtType;
 import com.youhua.debt.enums.OverdueStatus;
 import com.youhua.debt.mapper.DebtMapper;
 import com.youhua.engine.apr.AprCalculator;
@@ -77,6 +78,7 @@ public class FinanceProfileServiceImpl implements FinanceProfileService {
             BigDecimal debtIncomeRatio,
             int overdueCount,
             int maxOverdueDays,
+            int mortgageCount,
             Long highestAprDebtId,
             ScoringEngine.ScoreResult scoreResult,
             ScoringEngine.ScoreInput scoreInput,
@@ -237,6 +239,9 @@ public class FinanceProfileServiceImpl implements FinanceProfileService {
         int overdueCount = (int) debts.stream()
                 .filter(d -> d.getOverdueStatus() != null && d.getOverdueStatus() != OverdueStatus.NORMAL)
                 .count();
+        int mortgageCount = (int) debts.stream()
+                .filter(d -> DebtType.MORTGAGE.equals(d.getDebtType()))
+                .count();
         int maxOverdueDays = debts.stream()
                 .filter(d -> d.getOverdueDays() != null)
                 .mapToInt(Debt::getOverdueDays)
@@ -287,7 +292,7 @@ public class FinanceProfileServiceImpl implements FinanceProfileService {
 
         return new ProfileCalculationData(
                 totalDebt, monthlyPayment, monthlyIncome, weightedApr, debtIncomeRatio,
-                overdueCount, maxOverdueDays, highestAprDebtId, scoreResult, scoreInput, scoreDetailJson, debts.size(),
+                overdueCount, maxOverdueDays, mortgageCount, highestAprDebtId, scoreResult, scoreInput, scoreDetailJson, debts.size(),
                 threeYearExtraInterest, avgLoanDays, highestAprCreditor, highInterestDebtCount
         );
     }
@@ -311,6 +316,8 @@ public class FinanceProfileServiceImpl implements FinanceProfileService {
                 .findFirst()
                 .ifPresent(d -> profile.setLiquidityScore(d.weightedScore()));
         profile.setOverdueCount(data.overdueCount());
+        profile.setMaxOverdueDays(data.maxOverdueDays());
+        profile.setMortgageCount(data.mortgageCount());
         profile.setHighestAprDebtId(data.highestAprDebtId());
         profile.setScoreDetailJson(data.scoreDetailJson());
         profile.setThreeYearExtraInterest(data.threeYearExtraInterest());
@@ -381,6 +388,9 @@ public class FinanceProfileServiceImpl implements FinanceProfileService {
                 .avgLoanDays(profile.getAvgLoanDays())
                 .highestAprCreditor(profile.getHighestAprCreditor())
                 .highInterestDebtCount(profile.getHighInterestDebtCount())
+                .overdueCount(profile.getOverdueCount())
+                .maxOverdueDays(profile.getMaxOverdueDays())
+                .mortgageCount(profile.getMortgageCount())
                 .build();
     }
 }

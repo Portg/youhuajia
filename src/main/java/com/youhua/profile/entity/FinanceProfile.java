@@ -37,6 +37,10 @@ public class FinanceProfile extends BaseVersionEntity {
 
     private Integer overdueCount;
 
+    private Integer maxOverdueDays;
+
+    private Integer mortgageCount;
+
     private Long highestAprDebtId;
 
     private String scoreDetailJson;
