@@ -33,6 +33,9 @@
 | AG-10 | 不在 Controller 层直接操作 Mapper | 必须经过 Service 层 | `should_not_call_mapper_from_controller` |
 | AG-11 | AI 不得自行发明 openapi.yaml 未定义的接口或字段 | 接口契约是前后端合同 | `should_match_openapi_contract` |
 | AG-12 | 不在用户界面使用专业术语（APR、加权利率、负债收入比） | 用户无法理解 | `should_use_plain_language_in_ui` |
+| AG-13 | 不允许未同意隐私协议的用户完成登录 | 合规红线，无法证明用户知情同意 | `should_reject_login_without_consent` |
+| AG-14 | 不将漏斗进度推算值作为前进/后退的硬性锁定 | 推算 step 仅用于首页「继续」入口，不阻止用户页内自由导航 | `should_allow_backward_navigation_regardless_of_inferred_step` |
+| AG-15 | 不在无完整依赖数据时将用户送入高阶漏斗页 | 推算向下降级：数据不一致时取最高「完整」锚点，而非最高「存在」锚点 | `should_degrade_step_when_data_incomplete` |
 
 ---
 
@@ -48,6 +51,8 @@
 | debtAmount | 中敏 | 可输出 | 正常返回 |
 | apr | 低敏 | 可输出 | 正常返回 |
 | score | 低敏 | 可输出 | 正常返回 |
+| consentTime | 低敏 | 可输出 | 正常返回 |
+| consentVersion | 低敏 | 可输出 | 正常返回 |
 
 ---
 
@@ -61,6 +66,9 @@
 - AI 生成个性化优化建议（文案层面，非计算层面）
 - 损失可视化（三年多付利息、月租等价物）
 - PDF 报告导出
+- 登录后漏斗进度恢复（按后端数据推算，首页「继续上次分析」入口）
+- 隐私政策/用户协议首次强制同意（登录页勾选，后端记录时间+版本）
+- 敏感接口限流（短信按手机号 1 分钟 1 次，登录按 IP 5 分钟 5 次）
 
 ### 不做什么
 - 资金划转、放款、代扣
@@ -68,6 +76,8 @@
 - 具体产品推荐、渠道导流
 - 用户间社交、社区功能
 - 自动化还款操作
+- 协议版本更新后强制重新同意（MVP 留字段不写逻辑，2.0 再加）
+- 匿名草稿与登录数据合并（MVP 用户路径为先登录再填）
 
 ---
 

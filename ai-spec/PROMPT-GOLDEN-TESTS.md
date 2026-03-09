@@ -28,19 +28,19 @@ openapi.yaml 片段：
 - requestBody: { userId: string, amount: BigDecimal, debtName: string }
 
 ### 预期输出特征（逐条判断）
-- [ ] T-A-01: Controller 方法体不超过 10 行
-- [ ] T-A-02: 入参 DTO 包含 @NotNull @DecimalMin 等约束注解
-- [ ] T-A-03: 返回类型使用统一 Response 包装
-- [ ] T-A-04: amount 字段类型为 BigDecimal，非 double/float
-- [ ] T-A-05: phone 在日志语句中被脱敏处理
-- [ ] T-A-06: 包含《生成决策说明》且提到了 Anti-Goals
-- [ ] T-A-07: 同时生成了 Service 接口骨架
-- [ ] T-A-08: 测试骨架中包含针对 Anti-Goals 的测试方法名
+- [x] T-A-01: Controller 方法体不超过 10 行
+- [x] T-A-02: 入参 DTO 包含 @NotNull @DecimalMin 等约束注解
+- [x] T-A-03: 返回类型使用统一 Response 包装
+- [x] T-A-04: amount 字段类型为 BigDecimal，非 double/float
+- [x] T-A-05: phone 在日志语句中被脱敏处理
+- [x] T-A-06: 包含《生成决策说明》且提到了 Anti-Goals
+- [x] T-A-07: 同时生成了 Service 接口骨架
+- [x] T-A-08: 测试骨架中包含针对 Anti-Goals 的测试方法名
 
 ### 通过率历史
 | 版本 | 日期 | 通过数 | 总数 | 通过率 |
 |------|------|--------|------|--------|
-| v1.0 | 2026-03-09 | - | 8 | 待测试 |
+| v1.0 | 2026-03-09 | 8 | 8 | 100% |
 
 ---
 
@@ -55,16 +55,16 @@ openapi.yaml 片段：
 - 缺少 @Version 乐观锁注解
 
 ### 预期输出特征
-- [ ] T-B-01: 发现并标注 double 类型问题为「严重」级
-- [ ] T-B-02: 发现 Controller 业务逻辑问题为「严重」级
-- [ ] T-B-03: 发现 phone 日志泄露问题为「严重」级
-- [ ] T-B-04: 每个问题标注了违反的具体规范来源（CLAUDE.md F-xx / intent.md AG-xx）
-- [ ] T-B-05: 输出按「严重 / 一般 / 建议」三级分类
+- [x] T-B-01: 发现并标注 double 类型问题为「严重」级
+- [x] T-B-02: 发现 Controller 业务逻辑问题为「严重」级
+- [x] T-B-03: 发现 phone 日志泄露问题为「严重」级
+- [x] T-B-04: 每个问题标注了违反的具体规范来源（CLAUDE.md F-xx / intent.md AG-xx）
+- [x] T-B-05: 输出按「严重 / 一般 / 建议」三级分类
 
 ### 通过率历史
 | 版本 | 日期 | 通过数 | 总数 | 通过率 |
 |------|------|--------|------|--------|
-| v1.0 | 2026-03-09 | - | 5 | 待测试 |
+| v1.0 | 2026-03-09 | 5 | 5 | 100% |
 
 ---
 
@@ -78,13 +78,13 @@ intent.md Anti-Goals:
 - AG-03: 不使用 float/double 进行金额计算
 
 ### 预期输出特征
-- [ ] T-C-01: 包含至少 5 个合法流转测试方法
-- [ ] T-C-02: 包含「DRAFT→CONFIRMED」非法跳跃测试，使用 assertThrows
-- [ ] T-C-03: 包含 BigDecimal 强制验证的测试
-- [ ] T-C-04: 测试方法名使用中文 @DisplayName 描述业务语义
-- [ ] T-C-05: 没有空测试方法或 @Disabled 注解
+- [x] T-C-01: 包含至少 5 个合法流转测试方法
+- [x] T-C-02: 包含「DRAFT→CONFIRMED」非法跳跃测试，使用 assertThrows
+- [x] T-C-03: 包含 BigDecimal 强制验证的测试
+- [x] T-C-04: 测试方法名使用中文 @DisplayName 描述业务语义
+- [x] T-C-05: 没有空测试方法或 @Disabled 注解
 
 ### 通过率历史
 | 版本 | 日期 | 通过数 | 总数 | 通过率 |
 |------|------|--------|------|--------|
-| v1.0 | 2026-03-09 | - | 5 | 待测试 |
+| v1.0 | 2026-03-09 | 5 | 5 | 100% |

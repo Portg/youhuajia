@@ -26,6 +26,7 @@ User (1) ──→ (N) OperationLog
 User (1) ──→ (N) OcrTask
 OcrTask (1) ──→ (0..1) Debt（OCR 成功后关联生成的债务记录）
 User (1) ──→ (N) ConsultationRequest（咨询意向收集）
+User (1) ──→ (0..1) UserImprovementPlan（改善计划完成状态，最多一条）
 ```
 
 ---
@@ -321,6 +322,33 @@ User (1) ──→ (N) ConsultationRequest（咨询意向收集）
 
 ---
 
+### 2.10 UserImprovementPlan — 用户改善计划完成状态
+
+> upsert 语义，每个用户最多一条记录，不保留历史。「重新评估」时逻辑删除。
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | BIGINT | PK, 雪花算法 | |
+| user_id | BIGINT | NOT NULL, UK | 用户 ID，唯一索引 |
+| layer1_completed | TINYINT(1) | NOT NULL, DEFAULT 0 | Layer1（生成报告）是否已完成 |
+| layer1_report_id | BIGINT | NULL | Layer1 关联的报告 ID |
+| layer2_completed | TINYINT(1) | NOT NULL, DEFAULT 0 | Layer2（利率优化）是否已完成 |
+| layer3_completed | TINYINT(1) | NOT NULL, DEFAULT 0 | Layer3（长期计划）是否已完成 |
+| create_time | DATETIME(3) | NOT NULL | |
+| update_time | DATETIME(3) | NOT NULL | |
+| deleted | TINYINT(1) | DEFAULT 0 | 逻辑删除 |
+| version | INT | DEFAULT 0 | 乐观锁 |
+
+**索引**：
+- `uk_improvement_plan_user_id (user_id)` — 唯一索引，保证每用户一条
+
+**API**：
+- `GET /api/v1/improvement-plans/mine` — 无记录时返回全 false 默认值
+- `PATCH /api/v1/improvement-plans/mine` — upsert，null 字段保留现有值
+- `DELETE /api/v1/improvement-plans/mine` — 逻辑删除（重新评估时调用）
+
+---
+
 ## 三、Schema 演进记录
 
 | 迁移版本 | 文件 | 说明 |
@@ -334,3 +362,5 @@ User (1) ──→ (N) ConsultationRequest（咨询意向收集）
 | V7 | `V7__add_consultation_request_table.sql` | 新增 ConsultationRequest 咨询意向表 |
 | V8 | `V8__add_profile_extra_fields.sql` | FinanceProfile 增加 `three_year_extra_interest`、`avg_loan_days`、`highest_apr_creditor` |
 | V9 | `V9__add_profile_high_interest_debt_count.sql` | FinanceProfile 增加 `high_interest_debt_count` |
+| V10 | `V10__add_user_consent_fields.sql` | User 增加 `consent_time`、`consent_version`（AG-13 隐私协议同意记录） |
+| V11 | `V11__create_user_improvement_plan.sql` | 新增 `t_user_improvement_plan` 表（改善计划完成状态持久化，upsert 不保留历史） |

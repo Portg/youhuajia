@@ -74,6 +74,182 @@
 <!-- 新记录插入此处 -->
 
 ---
+日期：2026-03-09 任务类型：BACKLOG #9 后端持久化 关联切片：全栈（后端新功能 + 前端 store）
+
+### 本次完成了什么
+
+**BACKLOG #9：改善计划后端持久化（421 后端单元测试 + 90 前端测试，全绿）**
+
+1. **V11 Flyway 迁移** — `t_user_improvement_plan`（4 层字段 + `uk_improvement_plan_user_id` 唯一索引 + 乐观锁 version）
+2. **后端 plan 包** — Entity / Mapper / DTO(Request+Response) / Service / ServiceImpl / Controller
+   - GET `/api/v1/improvement-plans/mine` — 无记录返回 empty()（全 false），前端无需处理 404
+   - PATCH `/api/v1/improvement-plans/mine` — upsert，null 字段保留现有值
+   - DELETE `/api/v1/improvement-plans/mine` — 逻辑删除（重新评估时调用）
+3. **前端 `src/api/improvementPlan.js`** — 三个 API 函数
+4. **`funnel.js` 三处改动**：
+   - `completeLayer1/2/3` → 调用 `syncPlanToBackend()`（fire-and-forget，失败不阻断前端）
+   - `inferStep()` → 并行第 4 个请求拉取 plan，同步到 `actionLayers`
+   - `reset()` → fire-and-forget `deleteImprovementPlan()`
+5. **ImprovementPlanServiceImplTest** — 7 用例（insert/update/null-preserve/delete/response mapping）
+6. **funnel.test.js** — 顶层 mock `improvementPlan.js`，23 用例全通过
+
+**关闭遗留问题**：
+- ✅ BACKLOG #9 完成
+- ✅ MISMATCH #3 分析确认：测试逻辑正确，withSmsCodeField 通过 MockBean 返回 200（非 400），断言无误
+
+### 关键决策
+| 决策内容 | 选择方案 | 原因摘要 |
+|----------|----------|----------|
+| GET 无记录返回策略 | 返回 empty()（全 false，200） | 前端 inferStep 用 requestSilent 无法区分"无记录 404"和"服务故障 500"；统一 200 让前端直接解构不需要特判 |
+| completeLayer 同步方式 | fire-and-forget（不 await） | 完成动作是用户即时操作，不应等待后端响应；本地 unistorage 已持久化，后端持久化是强化保障 |
+| reset DELETE 触发时机 | 在 reset() 中直接 fire-and-forget | reset() 的语义已是"重新开始"，统一在此处清空后端，无需每个调用方额外处理 |
+| null 字段是否覆盖 | null=不更新，false/true=覆盖 | 防止多设备并发"部分更新"时误清已完成层；前端实际上总是发全量，null 保护是防御性设计 |
+
+### AI 推理链（关键决策必填）
+
+决策：GET 无记录返回 200+empty 而非 404
+1. 我读取了 inferStep() 调用 requestSilent，错误被 Promise.allSettled 的 rejected 分支静默吞掉
+2. 我注意到 requestSilent 设计为"所有异常不抛出"，前端用 `planRes.status === 'fulfilled'` 判断
+3. 如果返回 404，requestSilent 会将其 reject，planRes.status 为 'rejected'，前端不会同步 plan — 逻辑正确但多了一个空请求的失败日志
+4. 如果返回 200+empty，planRes.status 为 'fulfilled'，前端安全解构，no-op（因为所有字段都是 false，与默认状态一致）
+5. 因此选择 200+empty，减少无用的失败日志，简化前端处理路径
+
+### 放弃的方案
+| 方案描述 | 放弃原因 |
+|----------|----------|
+| completeLayer 改为 async + await | 用户点击"完成"后需立即看到 UI 反馈，异步等待后端增加感知延迟 |
+| 单独新建 ImprovementPlanController 在 profile 包 | plan 是独立业务域（不是 profile 的子资源），独立包职责更清晰 |
+| checklist 也持久化到后端 | checklist 是 Page 9 UI 辅助项，无跨设备恢复价值；BACKLOG 原文只提 actionLayers |
+
+### 遗留问题（下次会话继续）
+- [ ] `generateJwt` phone 参数冗余（低优先级清理）
+- [ ] `consentVersion` 前端硬编码 'v1.0'（协议版本升级时需同步）
+- [ ] entities.md 未添加 UserImprovementPlan 实体说明
+- [ ] openapi.yaml 未添加 /improvement-plans/mine 端点（API 文档对齐）
+
+### Spec 变更建议
+- 文件：domain/entities.md 内容：新增 `t_user_improvement_plan` 表定义（V11 迁移）
+- 文件：contracts/openapi.yaml 内容：新增 GET/PATCH/DELETE `/improvement-plans/mine` 端点
+---
+
+---
+日期：2026-03-09 任务类型：Bug 修复（安全/显示/状态）+ 架构对齐讨论 关联切片：后端认证安全 / 前端低分路径
+
+### 本次完成了什么
+- `sessions:revoke` 端点认证漏洞修复（JwtAuthFilter PUBLIC_PREFIXES 过宽）
+- `JwtAuthFilterTest` 新增（15 用例，含 TC-01 回归防止同类问题）
+- 改善计划预估分数倒退修复（`improvement-plan.vue` + `credit-optimization.vue`）
+- 登出后改善计划被清空修复（`mine/index.vue` 移除 `funnelStore.reset()`）
+- 高分用户"我的报告"排查（无问题，后端实时拉取）
+- 改善计划后端持久化方案设计（两表结构 + 不保留历史，记入 BACKLOG #9）
+
+### 关键决策
+| 决策内容 | 选择方案 | 原因摘要 |
+|----------|----------|----------|
+| JwtAuthFilter 公开路径策略 | 精确枚举 PUBLIC_EXACT_PATHS，移除宽泛前缀 | `/api/v1/auth/` 前缀匹配到 `revoke`，导致绕过 JWT 校验；精确枚举默认受保护，防止未来新增端点被误判为公开 |
+| projectedScore 基准 | `funnelStore.score`（后端 PMML）+ 客户端 `scoreDelta` | 两个模型绝对分不可比；delta 反映改善幅度是正确语义，基准锚定后端分保持一致性 |
+| 登出是否 reset funnelStore | 不 reset | 改善计划是用户数据，只应在重新评估时清空；登出时保留本地数据 |
+| 改善计划是否保留历史 | 不保留（只保最新一条）| 计划是行动指令而非历史快照；报告才是评分结果记录；MVP 保持简单 |
+
+### AI 推理链（关键决策必填）
+
+决策：JwtAuthFilter 精确枚举公开路径
+1. 我读取了 `JwtAuthFilter.PUBLIC_PREFIXES = {"/api/v1/auth/", ...}`
+2. 我注意到 `/api/v1/auth/sessions:revoke` 匹配前缀，JWT 过滤器跳过，`userId` 未注入，`RequestContextUtil.getCurrentUserId()` 抛"用户未登录"
+3. 我考虑了「在前缀集合中手动排除 revoke」和「改为精确枚举公开路径」
+4. 手动排除的问题：未来新增 `/api/v1/auth/xxx` 端点默认公开，需每次记得排除，容易遗漏
+5. 因此选择精确枚举 `PUBLIC_EXACT_PATHS`，默认受保护，只有明确列出的才是公开
+
+决策：projectedScore = funnelStore.score + scoreDelta
+1. 我读取了 `improvement-plan.vue`：当前评分展示 `funnelStore.score`（后端 PMML），预估展示 `simulation.value.simulated.finalScore`（客户端 JS）
+2. 我注意到两个值来自不同模型，同样输入下后端分（51.5）≠ 客户端分（35），导致"改善后"反而低于当前
+3. 我考虑了「统一用客户端分展示当前」和「用 scoreDelta 叠加后端基准分」
+4. 统一用客户端分的问题：需改 `funnelStore.score` 来源，影响面大，且客户端分本身不如后端 PMML 准确
+5. 因此用后端基准 + 客户端 delta，delta 是同一模型内的相对变化，方向正确且不依赖绝对精度
+
+### 放弃的方案
+| 方案描述 | 放弃原因 |
+|----------|----------|
+| 在 PUBLIC_PREFIXES 中手动排除 revoke | 防御性差，未来新增 auth 端点默认公开，易遗漏 |
+| projectedScore 改为纯客户端绝对分 | 客户端模型与后端 PMML 精度不同，用户会看到"当前 35 分"与之前看到的"51.5 分"不一致 |
+| 改善计划保留历史（对齐报告） | 计划是行动指令，历史无复看价值；报告是评分快照，有比较价值；两者性质不同 |
+
+### 遗留问题（下次会话继续）
+- [ ] 改善计划后端持久化未实现（两表：`user_improvement_plan` + `user_improvement_plan_item`，upsert，不保留历史）—— 已记入 BACKLOG #9
+- [ ] `reports.vue:92` 低分预估分数展示生成时快照（`planResult.forecastScore`），用户后端 score 变化后快照过时（可接受，属正常快照语义）
+- [ ] PROMPT-GOLDEN-TESTS 所有 Golden Test 待首次运行
+- [ ] @AiGenerated 注解类尚未在项目中创建
+
+### Spec 变更建议
+- 文件：`client-spec.md` 内容：`scoreSimulator.js` 补充说明"projectedScore 必须用 `funnelStore.score + scoreDelta`，不得直接展示 `simulated.finalScore`"
+---
+
+---
+日期：2026-03-09 任务类型：系统改善 #1-#11 全实现 + Code Review 修复 关联切片：全栈（后端认证/债务/引擎 + 前端漏斗/埋点）
+使用的 Prompt 版本：无（IMPROVEMENT-BACKLOG 驱动）
+
+### 本次完成了什么
+
+**实现 IMPROVEMENT-BACKLOG 11 项改善（489 tests，全绿）**
+
+1. **#1 inferStep**：登录后并行拉 debts/profile/reports，推算 step（1/3/5/8），静默写入 funnelStore
+2. **#2 Page4→5 低分路由**：点击 CTA 前确保画像已计算，score≤0 先 triggerCalculation，isLowScore 分支路由
+3. **#3 DebtMapper 聚合 SQL**：selectSummaryByUserId 一条 SQL 替代全量 selectList 二次查询
+4. **#4 PreAuditEngineTest**：22 个测试，覆盖概率 clamping / 建议生成 / 配置降级
+5. **#5 前端单测**：formatters.test.js(24) + funnel.test.js(18) 新增
+6. **#6 限流注解**：@RateLimit(sms-send: 1/60s, login: 5/300s)
+7. **#7 隐私协议**：V10 Flyway 迁移 + User 字段 + LoginRequest.consentVersion + AuthServiceImpl 记录
+8. **#8 Golden Tests**：3 套 golden test 基准（generate-api/code-review/generate-test）
+9. **#9 埋点**：tracking.js，9 个标准事件，H5/小程序双条件编译
+10. **#10 revokeSession**：Redis 删除 session key，RequestContextUtil 取 userId
+11. **#11 SensitiveDataUtil**：maskPhone/maskIdCard，AuthServiceImpl 委托
+
+**Code Review 修复（6 项）**
+
+- 严重1: 新增 `CONSENT_REQUIRED(401009)` 错误码，service 层显式校验替代 @NotBlank
+- 严重2: 补 AG-13/14/15 对应 @Test（AuthServiceImplTest + funnel.test.js 6 个用例）
+- 一般: DebtServiceImpl 聚合 Map null 防御 / @AiGenerated 标注 / @DisplayName / tracking.js 注释澄清
+
+### 关键决策
+
+| 决策内容 | 选择方案 | 原因摘要 |
+|----------|----------|----------|
+| AG-13 校验位置 | Service 层显式抛 CONSENT_REQUIRED，移除 DTO @NotBlank | 前端可程序化识别专用错误码；@NotBlank 返回通用 400 无法区分"未同意"和"字段缺失" |
+| CONSENT_REQUIRED 时 SMS code 是否删除 | 不删除 | 用户同意后可直接重试，无需重新获取验证码；5 分钟 TTL 内安全 |
+| inferStep 推算粒度 | 粗粒度 4 档（1/3/5/8） | SPEC-DISCOVERY 决策：细粒度推算在数据不完整时产生错误锚点，粗粒度降级更安全 |
+| DebtServiceImpl null 防御 | 逐 key 三元运算，默认 0/ZERO | 避免 NPE 同时保持返回结构完整，不影响正常路径 |
+
+### AI 推理链（关键决策必填）
+
+决策：CONSENT_REQUIRED 移除 @NotBlank
+1. 我读取了 intent.md AG-13："未同意隐私协议返回 CONSENT_REQUIRED"
+2. 我注意到 @NotBlank 校验走 Spring Validation，返回 VALIDATION_FAILED(500007) 通用 400
+3. 我考虑了 "保留 @NotBlank + 加 ConstraintViolation 处理器" 和 "移除 @NotBlank + service 层抛专用 CONSENT_REQUIRED"
+4. 前者问题：GlobalExceptionHandler 需新增 ConsentVersion 专属匹配，且前端仍需解析 details 字段，复杂度高
+5. 因此移除 @NotBlank，service 层第一道校验抛 CONSENT_REQUIRED，前端可直接 switch error.code
+
+### 放弃的方案
+
+| 方案描述 | 放弃原因 |
+|----------|----------|
+| @NotBlank + ConstraintViolationException 拦截 | 需定制 GlobalExceptionHandler 匹配 consentVersion 字段名，脆弱且可维护性差 |
+| inferStep 细粒度推算（step 1-9 全档） | 数据不完整时产生假性高锚点，AG-15 要求降级到最高「完整」锚点 |
+| generateJwt 移除 phone 参数 | 破坏 2 处调用 + 测试，代价 > 收益（参数只是冗余，非 bug） |
+
+### 遗留问题（下次会话继续）
+
+- [ ] localStorage phone 明文存储（功能必要：ConsultCard/feedback 需完整号码做格式校验和表单填充；若需加密应整体加密 storage，2.0 评估）
+- [ ] `generateJwt` phone 参数冗余（仅 userId 写入 payload，phone 未使用，低优先级清理）
+- [ ] ApiContractTest MISMATCH #3 断言 `withSmsCodeField isNotEqualTo(400)` 逻辑存疑（SMS 不在 Redis 仍返回 400，需确认 E2ETestSupport 是否预置 SMS code）
+- [ ] `consentVersion` 硬编码为 'v1.0' 默认值（api/auth.js），协议版本升级时需同步更新前端
+
+### Spec 变更建议
+
+- 文件：contracts/error-codes.md 内容：新增 CONSENT_REQUIRED(401009) 条目
+- 文件：domain/intent.md 内容：AG-13 对应测试方法名已实现（should_reject_login_without_consent）
+---
+
+---
 日期：2026-03-09 任务类型：漏斗页退出机制 + 低分用户"我的"页面适配 关联切片：前端漏斗流程 / 导航结构
 使用的 Prompt 版本：无（SPEC-DISCOVER 驱动）
 
