@@ -1,0 +1,61 @@
+strategy_name: "房贷优化策略"
+segment: MORTGAGE_HEAVY
+description: "适用于房贷占比超过50%的用户，资金流动性和信用稳定度权重提升"
+created_by: "系统"
+created_at: "2026-03-09"
+version: "1.0"
+
+# 风险等级边界（与 DEFAULT 一致）
+# finalScore >= 80 → LOW, >= 60 → MEDIUM, >= 40 → HIGH, < 40 → CRITICAL
+risk_level_boundaries: [80, 60, 40]
+restructure_threshold: 60
+
+# 各 Reason Code 对应的中文解读和改善建议
+reason_code_messages:
+  DIR:
+    label: "月供压力"
+    explain_template: "当前负债收入比 {value}，{level_desc}"
+    level_descriptions:
+      - { max: 0.30, desc: "财务状况健康" }
+      - { max: 0.50, desc: "有一定压力但可控" }
+      - { max: 0.70, desc: "压力偏大，建议控制新增借贷" }
+      - { max: 0.90, desc: "月供压力较重，房贷叠加其他负债需优先缓解" }
+      - { max: 999, desc: "月供负担严重，建议优先降低非房贷支出" }
+    improvement_tip: "房贷属于长期优质负债，优先减少非房贷类月供可缓解压力"
+  APR:
+    label: "综合利率"
+    explain_template: "当前加权利率 {value}%，{level_desc}"
+    level_descriptions:
+      - { max: 10, desc: "利率水平健康" }
+      - { max: 18, desc: "利率中等" }
+      - { max: 24, desc: "利率中等偏高" }
+      - { max: 36, desc: "利率偏高" }
+      - { max: 999, desc: "利率过高，建议优先处理" }
+    improvement_tip: "房贷利率通常较低，重点关注非房贷类高息负债的利率优化"
+  LIQ:
+    label: "资金流动性"
+    explain_template: "月收入与月供的比例关系 {level_desc}"
+    level_descriptions:
+      - { condition: "income > payment", desc: "收入覆盖月供，有余力" }
+      - { condition: "income <= payment", desc: "月供压力较大，余力不足" }
+      - { condition: "no_income_data", desc: "缺少收入数据" }
+    improvement_tip: "房贷用户月供固定较高，增加收入来源或减少非必要支出可改善流动性"
+  OVD:
+    label: "还款记录"
+    explain_template: "逾期 {overdueCount} 笔，最长 {maxOverdueDays} 天，{level_desc}"
+    level_descriptions:
+      - { count: 0, desc: "无逾期记录，表现优秀" }
+      - { count: 1, max_days: 30, desc: "轻微逾期，及时补齐即可" }
+      - { count: 2, max_days: 60, desc: "有逾期记录，建议尽快补齐" }
+      - { count: 3, max_days: 90, desc: "逾期较多，需优先处理" }
+      - { count_gt: 3, desc: "逾期情况严重，务必优先补齐所有欠款" }
+    improvement_tip: "房贷逾期影响较大，务必优先保证房贷按时还款"
+  CST:
+    label: "信用稳定度"
+    explain_template: "负债 {debtCount} 笔，平均借贷 {avgLoanDays} 天，{level_desc}"
+    level_descriptions:
+      - { count: 2, days: 180, desc: "负债少且稳定" }
+      - { count: 4, desc: "负债笔数适中" }
+      - { count: 6, desc: "负债笔数偏多" }
+      - { count_gt: 6, desc: "负债笔数过多，建议整合" }
+    improvement_tip: "房贷属于稳定长期负债，减少短期消费贷笔数可提升稳定度"

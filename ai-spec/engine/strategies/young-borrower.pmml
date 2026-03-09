@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PMML xmlns="http://www.dmg.org/PMML-4_4" version="4.4">
+
+  <Header copyright="YouHuaJia" description="YOUNG_BORROWER segment scorecard — 新手成长策略">
+    <Application name="youhuajia-scoring" version="1.0"/>
+    <Timestamp>2026-03-09T00:00:00</Timestamp>
+  </Header>
+
+  <!-- ================================================================== -->
+  <!-- DataDictionary: 8 input fields                                      -->
+  <!-- ================================================================== -->
+  <DataDictionary numberOfFields="8">
+    <DataField name="debtIncomeRatio" optype="continuous" dataType="double"/>
+    <DataField name="weightedApr"     optype="continuous" dataType="double"/>
+    <DataField name="monthlyIncome"   optype="continuous" dataType="double"/>
+    <DataField name="monthlyPayment"  optype="continuous" dataType="double"/>
+    <DataField name="overdueCount"    optype="continuous" dataType="integer"/>
+    <DataField name="maxOverdueDays"  optype="continuous" dataType="integer"/>
+    <DataField name="debtCount"       optype="continuous" dataType="integer"/>
+    <DataField name="avgLoanDays"     optype="continuous" dataType="integer"/>
+  </DataDictionary>
+
+  <!-- ================================================================== -->
+  <!-- Scorecard Model                                                     -->
+  <!-- Weights: DIR=0.25  APR=0.25  LIQ=0.15  OVD=0.20  CST=0.15         -->
+  <!-- YOUNG_BORROWER: CST weight elevated to 0.15                        -->
+  <!-- partialScore = rawScore x weight (pre-multiplied)                   -->
+  <!-- ================================================================== -->
+  <Scorecard modelName="young_borrower_scorecard" functionName="regression"
+             initialScore="0" useReasonCodes="true"
+             reasonCodeAlgorithm="pointsBelow" baselineScore="0">
+
+    <MiningSchema>
+      <MiningField name="debtIncomeRatio" usageType="active" invalidValueTreatment="asMissing"/>
+      <MiningField name="weightedApr"     usageType="active"/>
+      <MiningField name="monthlyIncome"   usageType="active" invalidValueTreatment="asMissing"/>
+      <MiningField name="monthlyPayment"  usageType="active"/>
+      <MiningField name="overdueCount"    usageType="active"/>
+      <MiningField name="maxOverdueDays"  usageType="active"/>
+      <MiningField name="debtCount"       usageType="active"/>
+      <MiningField name="avgLoanDays"     usageType="active"/>
+    </MiningSchema>
+
+    <Output>
+      <OutputField name="finalScore" feature="predictedValue" dataType="double"/>
+      <OutputField name="reasonCode1" rank="1" feature="reasonCode" dataType="string"/>
+      <OutputField name="reasonCode2" rank="2" feature="reasonCode" dataType="string"/>
+      <OutputField name="reasonCode3" rank="3" feature="reasonCode" dataType="string"/>
+    </Output>
+
+    <Characteristics>
+
+      <!-- ============================================================ -->
+      <!-- DIR — 负债收入比  weight=0.25                                  -->
+      <!-- ============================================================ -->
+      <Characteristic name="debtIncomeRatio_score" reasonCode="DIR" baselineScore="22.5">
+        <!-- income missing → raw 20 × 0.25 = 5.0 -->
+        <Attribute partialScore="5.0">
+          <SimplePredicate field="monthlyIncome" operator="isMissing"/>
+        </Attribute>
+        <!-- ratio ≤ 0.30 → raw 90 × 0.25 = 22.5 -->
+        <Attribute partialScore="22.5">
+          <SimplePredicate field="debtIncomeRatio" operator="lessOrEqual" value="0.30"/>
+        </Attribute>
+        <!-- ratio ≤ 0.50 → raw 70 × 0.25 = 17.5 -->
+        <Attribute partialScore="17.5">
+          <SimplePredicate field="debtIncomeRatio" operator="lessOrEqual" value="0.50"/>
+        </Attribute>
+        <!-- ratio ≤ 0.70 → raw 50 × 0.25 = 12.5 -->
+        <Attribute partialScore="12.5">
+          <SimplePredicate field="debtIncomeRatio" operator="lessOrEqual" value="0.70"/>
+        </Attribute>
+        <!-- ratio ≤ 0.90 → raw 30 × 0.25 = 7.5 -->
+        <Attribute partialScore="7.5">
+          <SimplePredicate field="debtIncomeRatio" operator="lessOrEqual" value="0.90"/>
+        </Attribute>
+        <!-- else → raw 10 × 0.25 = 2.5 -->
+        <Attribute partialScore="2.5">
+          <True/>
+        </Attribute>
+      </Characteristic>
+
+      <!-- ============================================================ -->
+      <!-- APR — 加权年化利率  weight=0.25                                -->
+      <!-- ============================================================ -->
+      <Characteristic name="weightedApr_score" reasonCode="APR" baselineScore="22.5">
+        <!-- apr ≤ 10.0 → raw 90 × 0.25 = 22.5 -->
+        <Attribute partialScore="22.5">
+          <SimplePredicate field="weightedApr" operator="lessOrEqual" value="10.0"/>
+        </Attribute>
+        <!-- apr ≤ 18.0 → raw 75 × 0.25 = 18.75 -->
+        <Attribute partialScore="18.75">
+          <SimplePredicate field="weightedApr" operator="lessOrEqual" value="18.0"/>
+        </Attribute>
+        <!-- apr ≤ 24.0 → raw 55 × 0.25 = 13.75 -->
+        <Attribute partialScore="13.75">
+          <SimplePredicate field="weightedApr" operator="lessOrEqual" value="24.0"/>
+        </Attribute>
+        <!-- apr ≤ 36.0 → raw 35 × 0.25 = 8.75 -->
+        <Attribute partialScore="8.75">
+          <SimplePredicate field="weightedApr" operator="lessOrEqual" value="36.0"/>
+        </Attribute>
+        <!-- else → raw 15 × 0.25 = 3.75 -->
+        <Attribute partialScore="3.75">
+          <True/>
+        </Attribute>
+      </Characteristic>
+
+      <!-- ============================================================ -->
+      <!-- LIQ — 资金流动性  weight=0.15                                  -->
+      <!-- ============================================================ -->
+      <Characteristic name="liquidity_score" reasonCode="LIQ" baselineScore="9.0">
+        <!-- income > payment → raw 60 × 0.15 = 9.0 -->
+        <Attribute partialScore="9.0">
+          <CompoundPredicate booleanOperator="and">
+            <SimplePredicate field="monthlyIncome" operator="greaterThan" value="0"/>
+            <SimplePredicate field="monthlyIncome" operator="greaterThan" value="0"/>
+          </CompoundPredicate>
+        </Attribute>
+        <!-- income > 0 but ≤ payment → raw 30 × 0.15 = 4.5 -->
+        <Attribute partialScore="4.5">
+          <SimplePredicate field="monthlyIncome" operator="greaterThan" value="0"/>
+        </Attribute>
+        <!-- else (no income data) → raw 40 × 0.15 = 6.0 -->
+        <Attribute partialScore="6.0">
+          <True/>
+        </Attribute>
+      </Characteristic>
+
+      <!-- ============================================================ -->
+      <!-- OVD — 逾期情况  weight=0.20                                    -->
+      <!-- ============================================================ -->
+      <Characteristic name="overdue_score" reasonCode="OVD" baselineScore="19.0">
+        <!-- overdueCount=0 → raw 95 × 0.20 = 19.0 -->
+        <Attribute partialScore="19.0">
+          <SimplePredicate field="overdueCount" operator="equal" value="0"/>
+        </Attribute>
+        <!-- overdueCount=1 AND maxOverdueDays≤30 → raw 70 × 0.20 = 14.0 -->
+        <Attribute partialScore="14.0">
+          <CompoundPredicate booleanOperator="and">
+            <SimplePredicate field="overdueCount" operator="lessOrEqual" value="1"/>
+            <SimplePredicate field="maxOverdueDays" operator="lessOrEqual" value="30"/>
+          </CompoundPredicate>
+        </Attribute>
+        <!-- overdueCount≤2 AND maxOverdueDays≤60 → raw 50 × 0.20 = 10.0 -->
+        <Attribute partialScore="10.0">
+          <CompoundPredicate booleanOperator="and">
+            <SimplePredicate field="overdueCount" operator="lessOrEqual" value="2"/>
+            <SimplePredicate field="maxOverdueDays" operator="lessOrEqual" value="60"/>
+          </CompoundPredicate>
+        </Attribute>
+        <!-- overdueCount≤3 AND maxOverdueDays≤90 → raw 30 × 0.20 = 6.0 -->
+        <Attribute partialScore="6.0">
+          <CompoundPredicate booleanOperator="and">
+            <SimplePredicate field="overdueCount" operator="lessOrEqual" value="3"/>
+            <SimplePredicate field="maxOverdueDays" operator="lessOrEqual" value="90"/>
+          </CompoundPredicate>
+        </Attribute>
+        <!-- else → raw 10 × 0.20 = 2.0 -->
+        <Attribute partialScore="2.0">
+          <True/>
+        </Attribute>
+      </Characteristic>
+
+      <!-- ============================================================ -->
+      <!-- CST — 信用稳定度  weight=0.15 (elevated for young borrowers)   -->
+      <!-- ============================================================ -->
+      <Characteristic name="creditStability_score" reasonCode="CST" baselineScore="12.0">
+        <!-- debtCount≤2 AND avgLoanDays≥180 → raw 80 × 0.15 = 12.0 -->
+        <Attribute partialScore="12.0">
+          <CompoundPredicate booleanOperator="and">
+            <SimplePredicate field="debtCount" operator="lessOrEqual" value="2"/>
+            <SimplePredicate field="avgLoanDays" operator="greaterOrEqual" value="180"/>
+          </CompoundPredicate>
+        </Attribute>
+        <!-- debtCount≤4 → raw 60 × 0.15 = 9.0 -->
+        <Attribute partialScore="9.0">
+          <SimplePredicate field="debtCount" operator="lessOrEqual" value="4"/>
+        </Attribute>
+        <!-- debtCount≤6 → raw 40 × 0.15 = 6.0 -->
+        <Attribute partialScore="6.0">
+          <SimplePredicate field="debtCount" operator="lessOrEqual" value="6"/>
+        </Attribute>
+        <!-- else → raw 20 × 0.15 = 3.0 -->
+        <Attribute partialScore="3.0">
+          <True/>
+        </Attribute>
+      </Characteristic>
+
+    </Characteristics>
+  </Scorecard>
+
+</PMML>

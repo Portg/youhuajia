@@ -1,0 +1,61 @@
+strategy_name: "新手成长策略"
+segment: YOUNG_BORROWER
+description: "适用于首次借贷或借贷经验较少的年轻用户（负债≤2笔且平均借贷<365天），信用稳定度权重提升，语调积极鼓励"
+created_by: "系统"
+created_at: "2026-03-09"
+version: "1.0"
+
+# 风险等级边界（与 DEFAULT 一致）
+# finalScore >= 80 → LOW, >= 60 → MEDIUM, >= 40 → HIGH, < 40 → CRITICAL
+risk_level_boundaries: [80, 60, 40]
+restructure_threshold: 60
+
+# 各 Reason Code 对应的中文解读和改善建议（鼓励性语调）
+reason_code_messages:
+  DIR:
+    label: "月供压力"
+    explain_template: "当前负债收入比 {value}，{level_desc}"
+    level_descriptions:
+      - { max: 0.30, desc: "财务状况很棒，继续保持" }
+      - { max: 0.50, desc: "有一定压力但在可控范围，你做得不错" }
+      - { max: 0.70, desc: "压力有些大，控制新增借贷会更轻松" }
+      - { max: 0.90, desc: "月供压力偏重，减少支出是当前的好方向" }
+      - { max: 999, desc: "月供负担较重，但每一步改善都有意义" }
+    improvement_tip: "信用还在积累中，控制月供比例是打好基础的关键一步"
+  APR:
+    label: "综合利率"
+    explain_template: "当前加权利率 {value}%，{level_desc}"
+    level_descriptions:
+      - { max: 10, desc: "利率水平很健康，选择得当" }
+      - { max: 18, desc: "利率中等，属于正常范围" }
+      - { max: 24, desc: "利率中等偏高，随着信用积累会有更好的选择" }
+      - { max: 36, desc: "利率偏高，信用积累后可以争取更优惠的利率" }
+      - { max: 999, desc: "利率较高，坚持按时还款，未来会有更低利率的机会" }
+    improvement_tip: "信用还在积累中，坚持按时还款是最好的方式，未来利率会越来越有优势"
+  LIQ:
+    label: "资金流动性"
+    explain_template: "月收入与月供的比例关系 {level_desc}"
+    level_descriptions:
+      - { condition: "income > payment", desc: "收入覆盖月供，有余力，做得很好" }
+      - { condition: "income <= payment", desc: "月供压力大了些，适当减少支出会更从容" }
+      - { condition: "no_income_data", desc: "缺少收入数据，补充后可以获得更准确的评估" }
+    improvement_tip: "养成记账习惯，合理规划收支，这是管理财务的好起点"
+  OVD:
+    label: "还款记录"
+    explain_template: "逾期 {overdueCount} 笔，最长 {maxOverdueDays} 天，{level_desc}"
+    level_descriptions:
+      - { count: 0, desc: "零逾期，非常棒，这是最好的信用基础" }
+      - { count: 1, max_days: 30, desc: "有一次小逾期，及时补齐就好，不影响大局" }
+      - { count: 2, max_days: 60, desc: "有逾期记录，尽快补齐，信用会慢慢恢复" }
+      - { count: 3, max_days: 90, desc: "逾期次数稍多，现在开始补齐还来得及" }
+      - { count_gt: 3, desc: "逾期记录需要重视，但只要开始行动就是好的开始" }
+    improvement_tip: "信用还在积累中，坚持按时还款是最好的方式，每一次按时还款都在为你加分"
+  CST:
+    label: "信用稳定度"
+    explain_template: "负债 {debtCount} 笔，平均借贷 {avgLoanDays} 天，{level_desc}"
+    level_descriptions:
+      - { count: 2, days: 180, desc: "负债少且稳定，起步很扎实" }
+      - { count: 4, desc: "负债笔数适中，保持稳定就好" }
+      - { count: 6, desc: "负债笔数偏多，适当整合会更清晰" }
+      - { count_gt: 6, desc: "负债笔数较多，整合后管理起来会更轻松" }
+    improvement_tip: "信用还在积累中，保持少量稳定的借贷记录比频繁借贷更有利于信用成长"
