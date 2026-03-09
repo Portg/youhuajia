@@ -122,6 +122,7 @@ const simulation = computed(() =>
   simulateImprovement(scoreInput.value, [
     { type: 'CATCH_UP_PAYMENTS' },
     { type: 'REDUCE_UTILIZATION' },
+    { type: 'PAY_OFF_SMALLEST' },
   ])
 )
 const projectedScore = computed(() =>
