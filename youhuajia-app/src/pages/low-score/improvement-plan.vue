@@ -207,7 +207,7 @@ async function onLayer1() {
     // 后端不可用时静默降级，本地模拟已提供结果
   }
   // 无论后端是否成功，均使用本地模拟结果
-  funnelStore.completeLayer1('low-score-plan')
+  funnelStore.completeLayer1(null) // 低分路径无报告 ID
   funnelStore.actionLayers.layer1.result = {
     plan: personalizedPlan.value,
     forecastScore: projectedScore.value,

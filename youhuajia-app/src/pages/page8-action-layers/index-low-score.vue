@@ -159,7 +159,7 @@ async function handleLayer1() {
   layer1Loading.value = true
   // 低分用户生成改善计划（本地生成，无需额外 API）
   await new Promise((resolve) => setTimeout(resolve, 800))
-  funnelStore.completeLayer1('low-score-plan')
+  funnelStore.completeLayer1(null) // 低分路径无报告 ID
   funnelStore.actionLayers.layer1.result = { documents: improvementPlan }
   layer1Loading.value = false
 }

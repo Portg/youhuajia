@@ -212,7 +212,7 @@ const layer3Status = computed(() => {
 
 // 本地 fallback 数据（后端不可用时使用）
 const FALLBACK_LAYER1 = {
-  reportId: 'local-demo',
+  reportId: null, // 降级时无真实报告 ID，后端 layer1ReportId 为 Long 不接受字符串
   documentList: [
     '身份证正反面照片',
     '近 6 个月银行流水（收入流水）',
