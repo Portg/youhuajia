@@ -42,7 +42,6 @@ function handleLogout() {
     success: async (res) => {
       if (res.confirm) {
         await authStore.logout()
-        funnelStore.reset()
         uni.switchTab({ url: '/pages/home/index' })
       }
     },

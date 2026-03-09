@@ -4,6 +4,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { createSession, refreshSession, revokeSession } from '../api/auth.js'
+import { useFunnelStore } from './funnel.js'
 
 export const useAuthStore = defineStore('auth', () => {
   // 只读一次 storage，不在 loadFromStorage 里重复读
@@ -23,6 +24,8 @@ export const useAuthStore = defineStore('auth', () => {
     uni.setStorageSync('token', res.accessToken)
     uni.setStorageSync('refreshToken', res.refreshToken)
     uni.setStorageSync('phone', phoneNum)
+    // 登录后推算漏斗进度，静默执行不阻塞
+    try { await useFunnelStore().inferStep() } catch (_) {}
   }
 
   async function logout() {

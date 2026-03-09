@@ -124,7 +124,9 @@ const simulation = computed(() =>
     { type: 'REDUCE_UTILIZATION' },
   ])
 )
-const projectedScore = computed(() => simulation.value.simulated.finalScore)
+const projectedScore = computed(() =>
+  Math.min(100, Math.round(funnelStore.score + simulation.value.scoreDelta))
+)
 
 // 根据弱项维度生成个性化计划
 const personalizedPlan = computed(() => {

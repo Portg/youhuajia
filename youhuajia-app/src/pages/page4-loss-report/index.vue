@@ -135,8 +135,8 @@
 
       <!-- CTA 区域：⚠️ 严格遵守 F-12，绝无"申请"按钮 -->
       <view class="cta-wrap">
-        <button class="cta-btn" @tap="handleGoOptimization">
-          看看我的优化空间 →
+        <button class="cta-btn" :disabled="navigating" @tap="handleGoOptimization">
+          {{ navigating ? '正在分析...' : '看看我的优化空间 →' }}
         </button>
       </view>
     </scroll-view>
@@ -144,7 +144,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useProfileStore } from '../../stores/profile.js'
 import { useFunnelStore } from '../../stores/funnel.js'
 import AnimatedNumber from '../../components/AnimatedNumber.vue'
@@ -153,6 +153,7 @@ import FunnelNavBar from '../../components/FunnelNavBar.vue'
 const profileStore = useProfileStore()
 const funnelStore = useFunnelStore()
 const profile = computed(() => profileStore.profile)
+const navigating = ref(false)
 
 // 常量（对应 application.yml 配置的市场均值）
 const MARKET_RATE = 18   // 市场均值 APR %
@@ -181,10 +182,27 @@ const aprBarWidth = computed(() => Math.min((profileStore.weightedApr / 36) * 10
 // 高息债务笔数（APR > 24%）
 const highInterestCount = computed(() => profile.value?.highInterestDebtCount || 0)
 
-function handleGoOptimization() {
-  const score = profileStore.score
-  funnelStore.advanceStep(5)
-  uni.navigateTo({ url: `/pages/page5-optimization/index?score=${score}` })
+async function handleGoOptimization() {
+  if (navigating.value) return
+  navigating.value = true
+  try {
+    // 确保画像已计算，避免低分用户因 score=0 误走正常路径
+    if (!profileStore.profile || profileStore.score <= 0) {
+      await profileStore.triggerCalculation()
+    }
+
+    funnelStore.advanceStep(5)
+
+    if (funnelStore.isLowScore) {
+      uni.navigateTo({ url: '/pages/low-score/credit-optimization' })
+    } else {
+      uni.navigateTo({ url: `/pages/page5-optimization/index?score=${profileStore.score}` })
+    }
+  } catch (_) {
+    uni.showToast({ title: '分析失败，请重试', icon: 'none' })
+  } finally {
+    navigating.value = false
+  }
 }
 
 onMounted(() => {

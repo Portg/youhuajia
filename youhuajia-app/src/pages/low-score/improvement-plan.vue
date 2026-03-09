@@ -148,7 +148,9 @@ const simulation = computed(() =>
     { type: 'PAY_OFF_SMALLEST' },
   ])
 )
-const projectedScore = computed(() => simulation.value.simulated.finalScore)
+const projectedScore = computed(() =>
+  Math.min(100, Math.round(funnelStore.score + simulation.value.scoreDelta))
+)
 const dimChanges = computed(() => simulation.value.dimChanges)
 
 // 根据弱项生成个性化改善计划

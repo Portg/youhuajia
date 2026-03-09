@@ -4,6 +4,12 @@
 import { request } from './request.js'
 
 /**
+ * 当前隐私协议版本号。协议升级时同步更新此常量，无需修改调用方。
+ * 对应后端 User.consentVersion 字段（AG-13）。
+ */
+export const CONSENT_VERSION = 'v1.0'
+
+/**
  * 发送短信验证码
  * POST /auth/sms:send
  */
@@ -15,8 +21,8 @@ export function sendSms(phone) {
  * 创建会话（登录）
  * POST /auth/sessions
  */
-export function createSession(phone, smsCode) {
-  return request({ url: '/auth/sessions', method: 'POST', data: { phone, smsCode } })
+export function createSession(phone, smsCode, consentVersion = CONSENT_VERSION) {
+  return request({ url: '/auth/sessions', method: 'POST', data: { phone, smsCode, consentVersion } })
 }
 
 /**

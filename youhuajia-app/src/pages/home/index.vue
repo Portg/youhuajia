@@ -15,6 +15,11 @@ onShow(() => {
   const done = uni.getStorageSync('onboardingDone')
   if (!done) {
     uni.navigateTo({ url: '/pages/onboarding/index' })
+    return
+  }
+  // 预加载债务数据，确保 continueAssessment 降级逻辑有数据可判断
+  if (authStore.isLoggedIn && funnelStore.currentStep > 1) {
+    debtStore.loadDebts()
   }
 })
 
