@@ -337,6 +337,7 @@ onMounted(() => {
     profileStore.loadProfile()
   } else {
     targetApr.value = currentApr.value
+    targetAprInitialized.value = true
   }
 })
 

@@ -38,6 +38,12 @@
       </view>
     </scroll-view>
 
+    <!-- 加载中 -->
+    <view class="empty-wrap" v-else-if="debtStore.loading">
+      <text class="empty-icon">📋</text>
+      <text class="empty-title">加载中...</text>
+    </view>
+
     <!-- 空态 -->
     <view class="empty-wrap" v-else>
       <text class="empty-icon">📋</text>
