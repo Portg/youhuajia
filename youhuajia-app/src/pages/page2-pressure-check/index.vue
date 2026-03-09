@@ -13,8 +13,8 @@ import { formatMoneyInteger } from '../../utils/formatters.js'
 const funnelStore = useFunnelStore()
 const authStore = useAuthStore()
 
-// 月供滑块状态
-const monthlyPayment = ref(5000)
+// 月供滑块状态（从 funnelStore 恢复上次选择，首次默认 5000）
+const monthlyPayment = ref(funnelStore.monthlyPayment || 5000)
 // 收入区间选项
 const incomeOptions = [
   { label: '5千以下', value: 3000 },
@@ -23,7 +23,9 @@ const incomeOptions = [
   { label: '2万-5万', value: 35000 },
   { label: '5万以上', value: 75000 }
 ]
-const selectedIncomeIndex = ref(1) // 默认"5千-1万"
+// 从 funnelStore 恢复上次选择的收入区间，找不到则默认第 1 档（5千-1万）
+const savedIncomeIndex = incomeOptions.findIndex(o => o.value === funnelStore.monthlyIncome)
+const selectedIncomeIndex = ref(savedIncomeIndex !== -1 ? savedIncomeIndex : 1)
 
 const selectedIncome = computed(() => incomeOptions[selectedIncomeIndex.value].value)
 

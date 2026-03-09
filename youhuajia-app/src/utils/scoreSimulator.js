@@ -372,7 +372,7 @@ export function buildScoreInput(profileStore, funnelStore, debtStore) {
   // 统计房贷笔数（用于 MORTGAGE_HEAVY 分群匹配）
   const mortgageCount = debts.filter(d =>
     d.productType === 'MORTGAGE' || d.debtType === 'MORTGAGE'
-  ).length
+  ).length || profile.mortgageCount || 0
 
   return {
     debtIncomeRatio: profile.debtIncomeRatio || (monthlyPayment / monthlyIncome),
