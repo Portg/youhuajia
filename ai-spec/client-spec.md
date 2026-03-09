@@ -288,12 +288,23 @@ export function createApp() {
 
 方法:
   - setScore(newScore)
-  - setFinanceProfile(profile)    — 同步更新 profile + score
+  - setFinanceProfile(profile)    — 同步更新 profile + score；低分↔正常切换时自动重置 actionLayers
   - advanceStep(step)
   - updatePressure(index, level)
   - completeLayer1(reportId) / completeLayer2() / completeLayer3()
   - toggleChecklistItem(key)
-  - reset()                       — 重置所有漏斗状态
+  - inferStep()                   — 登录后并行拉取后端数据，推算漏斗步骤（粗粒度 4 档：1/3/5/8）
+  - reset()                       — 重置所有漏斗状态；先快照 wasLowScore，再清零 score，仅低分用户 fire-and-forget DELETE improvement plan
+
+⚠️  improvement plan 持久化设计（互斥原则）：
+  - 低分用户（isLowScore = score > 0 && score < 60）：
+      · completeLayer1/2/3 → 调用 syncPlanToBackend()（fire-and-forget PATCH /improvement-plans/mine）
+      · inferStep() → 并行拉取 /improvement-plans/mine，同步 actionLayers 到本地（跨设备恢复）
+      · reset() → 先快照 `wasLowScore = isLowScore.value`，再清零 score，最后 `if (wasLowScore)` 才 DELETE（正常用户不发请求）
+  - 正常用户（score >= 60）：
+      · actionLayers 进度由报告系统追踪（inferStep 根据 reports 存在推算 step=8）
+      · 不读写 improvement_plan 表，两套系统互斥，不得混用
+  - 跨设备恢复逻辑：低分用户换设备登录后，inferStep 拉取 improvement_plan 恢复本地 actionLayers
 ```
 
 ### 4.4 Profile Store（财务画像）

@@ -38,6 +38,8 @@ tags:
     description: 咨询意向收集
   - name: scoring-strategies
     description: 评分策略管理
+  - name: improvement-plans
+    description: 低分用户改善计划（仅 isLowScore 用户读写，与报告系统互斥）
 
 # ============================================================
 # 通用组件
@@ -93,6 +95,9 @@ components:
           maxLength: 6
         deviceFingerprint:
           type: string
+        consentVersion:
+          type: string
+          description: "隐私协议版本，如 'v1.0'。首次登录必须提供，Service 层校验并返回 CONSENT_REQUIRED(401009)"
 
     LoginResponse:
       type: object
@@ -553,6 +558,51 @@ components:
         totalInterest:
           type: number
 
+    # ---------- ImprovementPlan（低分用户改善计划）----------
+    ImprovementPlanResponse:
+      type: object
+      description: 低分用户三层改善行动进度（无记录时各字段返回 false/null）
+      properties:
+        layer1Completed:
+          type: boolean
+          default: false
+          description: 第一层（生成30天改善计划）是否完成
+        layer1ReportId:
+          type: integer
+          format: int64
+          nullable: true
+          description: Layer 1 关联的报告 ID（低分路径通常为 null）
+        layer2Completed:
+          type: boolean
+          default: false
+          description: 第二层（设置还款提醒）是否完成
+        layer3Completed:
+          type: boolean
+          default: false
+          description: 第三层（预约30天后重新评估）是否完成
+        updateTime:
+          type: string
+          format: date-time
+          readOnly: true
+
+    UpsertImprovementPlanRequest:
+      type: object
+      description: null 字段表示「不更新该字段」，保留现有值
+      properties:
+        layer1Completed:
+          type: boolean
+          nullable: true
+        layer1ReportId:
+          type: integer
+          format: int64
+          nullable: true
+        layer2Completed:
+          type: boolean
+          nullable: true
+        layer3Completed:
+          type: boolean
+          nullable: true
+
   securitySchemes:
     BearerAuth:
       type: http
@@ -923,7 +973,7 @@ paths:
                       $ref: '#/components/schemas/Income'
 
   # ===== Finance Profiles 资源（单例资源）=====
-  /finance-profiles/me:
+  /finance-profiles/mine:
     get:
       tags: [finance-profiles]
       summary: Get - 获取当前用户的财务画像
@@ -938,7 +988,7 @@ paths:
         '404':
           description: 尚未生成画像
 
-  /finance-profiles/me:calculate:
+  /finance-profiles/mine:calculate:
     post:
       tags: [finance-profiles]
       summary: 触发画像重新计算（自定义方法）
@@ -1415,3 +1465,53 @@ paths:
               schema:
                 type: string
                 format: binary
+
+  # ===== Improvement Plans 资源（低分用户专属，单例）=====
+  # 注意：仅 score < 60 的用户读写此资源，正常用户进度由报告系统追踪，两者互斥。
+  /improvement-plans/mine:
+    get:
+      tags: [improvement-plans]
+      summary: Get - 获取当前用户的改善计划进度
+      operationId: getImprovementPlan
+      description: |
+        无记录时返回全 false 的默认值（HTTP 200），不返回 404。
+        前端 inferStep 使用 requestSilent 无法区分 404 和 500，统一 200 简化前端处理。
+      responses:
+        '200':
+          description: 改善计划进度（无记录时返回空默认值）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImprovementPlanResponse'
+
+    patch:
+      tags: [improvement-plans]
+      summary: Upsert - 更新改善计划进度（null 字段不覆盖）
+      operationId: upsertImprovementPlan
+      description: |
+        Insert-or-update 语义。null 字段保留现有值，防止多设备并发误清已完成层。
+        前端 fire-and-forget，失败不阻断用户操作。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertImprovementPlanRequest'
+      responses:
+        '200':
+          description: 更新后的改善计划进度
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImprovementPlanResponse'
+
+    delete:
+      tags: [improvement-plans]
+      summary: Delete - 清除改善计划（重新评估时调用）
+      operationId: deleteImprovementPlan
+      description: |
+        逻辑删除。用户点击「重新评估」时前端 fire-and-forget 调用。
+        对正常用户调用无影响（幂等空操作）。
+      responses:
+        '204':
+          description: 已清除
