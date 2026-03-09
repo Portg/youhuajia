@@ -9,6 +9,7 @@ import com.youhua.plan.mapper.UserImprovementPlanMapper;
 import com.youhua.plan.service.ImprovementPlanService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -32,15 +33,19 @@ public class ImprovementPlanServiceImpl implements ImprovementPlanService {
             plan.setLayer3Completed(false);
         }
 
-        // 仅覆盖非 null 字段，null 表示"不变"
-        if (request.getLayer1Completed() != null) plan.setLayer1Completed(request.getLayer1Completed());
-        if (request.getLayer1ReportId() != null)  plan.setLayer1ReportId(request.getLayer1ReportId());
-        if (request.getLayer2Completed() != null) plan.setLayer2Completed(request.getLayer2Completed());
-        if (request.getLayer3Completed() != null) plan.setLayer3Completed(request.getLayer3Completed());
+        applyRequest(plan, request);
 
         if (plan.getId() == null) {
-            planMapper.insert(plan);
-            log.debug("[ImprovementPlan] created userId={}", userId);
+            try {
+                planMapper.insert(plan);
+                log.debug("[ImprovementPlan] created userId={}", userId);
+            } catch (DuplicateKeyException e) {
+                // 并发竞态：另一个请求已抢先 INSERT，降级为查询后 UPDATE
+                log.warn("[ImprovementPlan] concurrent insert conflict userId={}, fallback to update", userId);
+                plan = findByUserId(userId);
+                applyRequest(plan, request);
+                planMapper.updateById(plan);
+            }
         } else {
             planMapper.updateById(plan);
             log.debug("[ImprovementPlan] updated userId={} layer1={} layer2={} layer3={}",
@@ -69,6 +74,14 @@ public class ImprovementPlanServiceImpl implements ImprovementPlanService {
     // ----------------------------------------------------------------
     // private helpers
     // ----------------------------------------------------------------
+
+    private void applyRequest(UserImprovementPlan plan, UpsertImprovementPlanRequest request) {
+        // 仅覆盖非 null 字段，null 表示"不变"
+        if (request.getLayer1Completed() != null) plan.setLayer1Completed(request.getLayer1Completed());
+        if (request.getLayer1ReportId() != null)  plan.setLayer1ReportId(request.getLayer1ReportId());
+        if (request.getLayer2Completed() != null) plan.setLayer2Completed(request.getLayer2Completed());
+        if (request.getLayer3Completed() != null) plan.setLayer3Completed(request.getLayer3Completed());
+    }
 
     private UserImprovementPlan findByUserId(Long userId) {
         return planMapper.selectOne(
