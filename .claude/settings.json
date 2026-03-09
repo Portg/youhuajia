@@ -1,0 +1,13 @@
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npx ccteam@latest agent:*)",
+      "Bash(mvn *)",
+      "Bash(npm *)",
+      "Bash(git *)"
+    ]
+  }
+}

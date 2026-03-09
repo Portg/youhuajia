@@ -38,14 +38,14 @@ out/
 # Test
 /coverage/
 
-# Claude Code — 共享项目配置，排除个人数据
-.claude/projects/
-.claude/worktrees/
-.claude/teams/
-.claude/tasks/
-.claude/debug/
-.claude/*.jsonl
-.claude/settings.local.json
+# Claude Code — 共享项目配置，排除个人数据（** 使子目录如 youhuajia-app/.claude 同规则）
+**/.claude/projects/
+**/.claude/worktrees/
+**/.claude/teams/
+**/.claude/tasks/
+**/.claude/debug/
+**/.claude/*.jsonl
+**/.claude/settings.local.json
 .ccteam/
 ccteam.yml
 
