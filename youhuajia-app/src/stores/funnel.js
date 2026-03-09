@@ -178,6 +178,8 @@ export const useFunnelStore = defineStore('funnel', () => {
     financeProfile.value = null
     pressureIndex.value = 0
     pressureLevel.value = 'HEALTHY'
+    monthlyPayment.value = 5000
+    monthlyIncome.value = 7500
     actionLayers.value = {
       layer1: { completed: false, reportId: null },
       layer2: { completed: false },
@@ -220,6 +222,6 @@ export const useFunnelStore = defineStore('funnel', () => {
   }
 }, {
   unistorage: {
-    paths: ['score', 'currentStep', 'pressureIndex', 'pressureLevel', 'actionLayers', 'checklist'],
+    paths: ['score', 'currentStep', 'pressureIndex', 'pressureLevel', 'monthlyPayment', 'monthlyIncome', 'actionLayers', 'checklist'],
   },
 })
