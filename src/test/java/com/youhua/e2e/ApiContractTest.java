@@ -346,10 +346,10 @@ class ApiContractTest extends E2ETestSupport {
                         .content("{\"phone\":\"13900000001\",\"code\":\"123456\"}"))
                 .andReturn().getResponse().getStatus();
 
-        // Backend expects "smsCode" field:
+        // Backend expects "smsCode" field (plus consentVersion):
         int withSmsCodeField = mockMvc.perform(post(API_BASE + "/auth/sessions")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"phone\":\"13900000001\",\"smsCode\":\"123456\"}"))
+                        .content("{\"phone\":\"13900000001\",\"smsCode\":\"123456\",\"consentVersion\":\"v1.0\"}"))
                 .andReturn().getResponse().getStatus();
 
         // Sending "code" (frontend format) results in validation failure (400) because smsCode is blank

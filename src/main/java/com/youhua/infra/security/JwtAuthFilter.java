@@ -37,15 +37,17 @@ public class JwtAuthFilter implements Filter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private static final Set<String> PUBLIC_PREFIXES = Set.of(
-            "/api/v1/auth/",
             "/api-docs",
             "/swagger-ui",
             "/actuator",
             "/favicon.ico"
     );
 
-    // Additional exact-match public paths (engine endpoints used pre-auth)
+    // Exact-match public paths (no auth required)
     private static final Set<String> PUBLIC_EXACT_PATHS = Set.of(
+            "/api/v1/auth/sms:send",
+            "/api/v1/auth/sessions",
+            "/api/v1/auth/sessions:refresh",
             "/api/v1/engine/pressure:assess",
             "/api/v1/engine/apr:calculate"
     );

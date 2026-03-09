@@ -182,7 +182,8 @@ class FunnelE2ETest extends E2ETestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "phone", "13900000001",
-                                "smsCode", "123456"
+                                "smsCode", "123456",
+                                "consentVersion", "v1.0"
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").value("stub-access-token"));
@@ -340,7 +341,8 @@ class FunnelE2ETest extends E2ETestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "phone", "13900000003",
-                                "smsCode", "123456"
+                                "smsCode", "123456",
+                                "consentVersion", "v1.0"
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").exists());

@@ -31,6 +31,10 @@ public class User extends BaseEntity {
 
     private String deviceFingerprint;
 
+    private LocalDateTime consentTime;
+
+    private String consentVersion;
+
     // ---- V2.0 预留 ----
     private String digitalWalletId;
 

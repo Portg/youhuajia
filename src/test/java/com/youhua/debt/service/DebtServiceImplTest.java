@@ -36,7 +36,9 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -92,6 +94,14 @@ class DebtServiceImplTest {
 
         // Default Redis mock setup
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+
+        // Default summary mock for listDebts
+        Map<String, Object> emptySummary = new HashMap<>();
+        emptySummary.put("total_count", 0L);
+        emptySummary.put("total_principal", BigDecimal.ZERO);
+        emptySummary.put("total_monthly_payment", BigDecimal.ZERO);
+        emptySummary.put("confirmed_count", 0L);
+        when(debtMapper.selectSummaryByUserId(any())).thenReturn(emptySummary);
     }
 
     @AfterEach
@@ -219,6 +229,13 @@ class DebtServiceImplTest {
         debt2.setCreditor("工商银行");
         List<Debt> debts = List.of(debt1, debt2);
         when(debtMapper.selectList(any())).thenReturn(debts);
+
+        Map<String, Object> summary = new HashMap<>();
+        summary.put("total_count", 2L);
+        summary.put("total_principal", new BigDecimal("200000"));
+        summary.put("total_monthly_payment", new BigDecimal("10000"));
+        summary.put("confirmed_count", 0L);
+        when(debtMapper.selectSummaryByUserId(TEST_USER_ID)).thenReturn(summary);
 
         ListDebtsRequest request = new ListDebtsRequest();
         ListDebtsResponse response = debtService.listDebts(request);

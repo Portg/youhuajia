@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.youhua.common.exception.BizException;
 import com.youhua.common.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -25,6 +26,8 @@ import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.concurrent.TimeUnit;
+
+import com.youhua.common.util.RequestContextUtil;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -100,6 +103,7 @@ class AuthServiceImplTest {
         LoginRequest request = new LoginRequest();
         request.setPhone(TEST_PHONE);
         request.setSmsCode("999999");
+        request.setConsentVersion("v1.0");
 
         // When & Then
         assertThatThrownBy(() -> authService.createSession(request))
@@ -116,6 +120,7 @@ class AuthServiceImplTest {
         LoginRequest request = new LoginRequest();
         request.setPhone(TEST_PHONE);
         request.setSmsCode("123456");
+        request.setConsentVersion("v1.0");
 
         // When & Then
         assertThatThrownBy(() -> authService.createSession(request))
@@ -138,6 +143,7 @@ class AuthServiceImplTest {
         LoginRequest request = new LoginRequest();
         request.setPhone(TEST_PHONE);
         request.setSmsCode("123456");
+        request.setConsentVersion("v1.0");
 
         // When
         LoginResponse response = authService.createSession(request);
@@ -170,6 +176,7 @@ class AuthServiceImplTest {
         LoginRequest request = new LoginRequest();
         request.setPhone(TEST_PHONE);
         request.setSmsCode("654321");
+        request.setConsentVersion("v1.0");
 
         // When
         LoginResponse response = authService.createSession(request);
@@ -194,6 +201,7 @@ class AuthServiceImplTest {
         LoginRequest request = new LoginRequest();
         request.setPhone(TEST_PHONE);
         request.setSmsCode("112233");
+        request.setConsentVersion("v1.0");
 
         // When & Then
         assertThatThrownBy(() -> authService.createSession(request))
@@ -215,6 +223,7 @@ class AuthServiceImplTest {
         LoginRequest request = new LoginRequest();
         request.setPhone(TEST_PHONE);
         request.setSmsCode("445566");
+        request.setConsentVersion("v1.0");
 
         // When
         authService.createSession(request);
@@ -232,10 +241,44 @@ class AuthServiceImplTest {
         assertThat(authService.maskPhone("123")).isEqualTo("****");
     }
 
+    /** AG-13: 未同意隐私协议不允许登录 */
+    @Test
+    @DisplayName("should_reject_login_without_consent — AG-13")
+    void should_reject_login_without_consent() {
+        // Given: valid SMS code but no consentVersion
+        when(valueOperations.get("sms:code:" + TEST_PHONE)).thenReturn("123456");
+
+        LoginRequest request = new LoginRequest();
+        request.setPhone(TEST_PHONE);
+        request.setSmsCode("123456");
+        // consentVersion intentionally omitted
+
+        // When & Then
+        assertThatThrownBy(() -> authService.createSession(request))
+                .isInstanceOf(BizException.class)
+                .satisfies(ex -> assertThat(((BizException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.CONSENT_REQUIRED));
+    }
+
+    @Test
+    @DisplayName("should_revoke_session_and_delete_redis_key")
+    void should_revoke_session_and_delete_redis_key() {
+        // Given
+        try (var mocked = mockStatic(RequestContextUtil.class)) {
+            mocked.when(RequestContextUtil::getCurrentUserId).thenReturn(5001L);
+
+            // When
+            authService.revokeSession();
+
+            // Then
+            verify(redisTemplate).delete("session:5001");
+        }
+    }
+
     @Test
     void should_generate_valid_jwt_and_verify_userId() {
         // When
-        String token = authService.generateJwt(9001L, TEST_PHONE);
+        String token = authService.generateJwt(9001L);
 
         // Then
         assertThat(token).isNotBlank();

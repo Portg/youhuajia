@@ -21,6 +21,7 @@ public enum ErrorCode {
     ACCOUNT_FROZEN(401006, HttpStatus.FORBIDDEN, "PERMISSION_DENIED", "账号已被冻结，请联系客服"),
     DEVICE_ABNORMAL(401007, HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "设备异常，请重新验证"),
     ACCOUNT_CANCELLED(401008, HttpStatus.FORBIDDEN, "PERMISSION_DENIED", "账号已注销"),
+    CONSENT_REQUIRED(401009, HttpStatus.BAD_REQUEST, "FAILED_PRECONDITION", "请先同意隐私政策和用户协议"),
 
     // ===== 债务模块 (402xxx) =====
     DEBT_NOT_FOUND(402001, HttpStatus.NOT_FOUND, "NOT_FOUND", "债务记录不存在"),

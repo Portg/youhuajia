@@ -17,4 +17,8 @@ public class LoginRequest {
     private String smsCode;
 
     private String deviceFingerprint;
+
+    /** 用户同意的隐私协议版本，首次登录必填（AG-13）
+     *  不在 DTO 层做 @NotBlank 校验，由 Service 层抛专用 CONSENT_REQUIRED 错误码 */
+    private String consentVersion;
 }

@@ -91,30 +91,29 @@ public class DebtServiceImpl implements DebtService {
                 .map(this::toDebtResponse)
                 .collect(Collectors.toList());
 
-        // TODO 优化：summary 改为聚合 SQL (SELECT COUNT, SUM)，避免第二次全量查询
-        LambdaQueryWrapper<Debt> allQuery = Wrappers.<Debt>lambdaQuery()
-                .eq(Debt::getUserId, userId);
-        List<Debt> allDebts = debtMapper.selectList(allQuery);
-
-        BigDecimal totalPrincipal = allDebts.stream()
-                .map(d -> d.getPrincipal() != null ? d.getPrincipal() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal totalMonthlyPayment = allDebts.stream()
-                .map(d -> d.getMonthlyPayment() != null ? d.getMonthlyPayment() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        long confirmedCount = allDebts.stream()
-                .filter(d -> DebtStatus.CONFIRMED == d.getStatus() || DebtStatus.IN_PROFILE == d.getStatus())
-                .count();
+        // 聚合 SQL：一条查询获取 summary，避免全量 selectList
+        java.util.Map<String, Object> summaryMap = debtMapper.selectSummaryByUserId(userId);
+        if (summaryMap == null) {
+            throw new BizException(ErrorCode.DB_ERROR, "Summary query returned null for userId=" + userId);
+        }
+        int totalCount = summaryMap.get("total_count") != null
+                ? ((Number) summaryMap.get("total_count")).intValue() : 0;
+        BigDecimal totalPrincipal = summaryMap.get("total_principal") != null
+                ? new BigDecimal(summaryMap.get("total_principal").toString()) : BigDecimal.ZERO;
+        BigDecimal totalMonthlyPayment = summaryMap.get("total_monthly_payment") != null
+                ? new BigDecimal(summaryMap.get("total_monthly_payment").toString()) : BigDecimal.ZERO;
+        int confirmedCount = summaryMap.get("confirmed_count") != null
+                ? ((Number) summaryMap.get("confirmed_count")).intValue() : 0;
 
         return ListDebtsResponse.builder()
                 .debts(debtResponses)
                 .nextPageToken(nextPageToken)
-                .totalSize(allDebts.size())
+                .totalSize(totalCount)
                 .summary(ListDebtsResponse.Summary.builder()
-                        .totalCount(allDebts.size())
+                        .totalCount(totalCount)
                         .totalPrincipal(totalPrincipal)
                         .totalMonthlyPayment(totalMonthlyPayment)
-                        .confirmedCount((int) confirmedCount)
+                        .confirmedCount(confirmedCount)
                         .build())
                 .build();
     }

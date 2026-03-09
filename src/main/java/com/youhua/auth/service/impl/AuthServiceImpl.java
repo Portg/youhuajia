@@ -8,8 +8,11 @@ import com.youhua.auth.entity.User;
 import com.youhua.auth.enums.UserStatus;
 import com.youhua.auth.mapper.UserMapper;
 import com.youhua.auth.service.AuthService;
+import com.youhua.common.annotation.AiGenerated;
 import com.youhua.common.exception.BizException;
 import com.youhua.common.exception.ErrorCode;
+import com.youhua.common.util.RequestContextUtil;
+import com.youhua.common.util.SensitiveDataUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -92,6 +95,11 @@ public class AuthServiceImpl implements AuthService {
             throw new BizException(ErrorCode.SMS_CODE_INVALID);
         }
 
+        // AG-13: consent required — checked after code validation to avoid timing oracle
+        if (request.getConsentVersion() == null || request.getConsentVersion().isBlank()) {
+            throw new BizException(ErrorCode.CONSENT_REQUIRED);
+        }
+
         // One-time use: delete code after validation
         redisTemplate.delete(smsKey);
 
@@ -120,12 +128,18 @@ public class AuthServiceImpl implements AuthService {
             }
         }
 
+        // Record consent (AG-13)
+        if (request.getConsentVersion() != null) {
+            user.setConsentTime(LocalDateTime.now());
+            user.setConsentVersion(request.getConsentVersion());
+        }
+
         // Update last login info
         user.setLastLoginTime(LocalDateTime.now());
         userMapper.updateById(user);
 
         // Generate JWT
-        String token = generateJwt(user.getId(), phone);
+        String token = generateJwt(user.getId());
 
         // Store session in Redis
         String sessionKey = SESSION_KEY_PREFIX + user.getId();
@@ -159,7 +173,7 @@ public class AuthServiceImpl implements AuthService {
             throw new BizException(ErrorCode.TOKEN_INVALID, "User not found");
         }
 
-        String newToken = generateJwt(userId, user.getPhone());
+        String newToken = generateJwt(userId);
         redisTemplate.opsForValue().set(sessionKey, newToken, jwtExpirationSeconds, TimeUnit.SECONDS);
 
         log.info("[AuthService] Session refreshed userId={}", userId);
@@ -175,19 +189,18 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void revokeSession() {
-        // TODO MVP 暂不实现
-        log.info("[AuthService] revokeSession called (MVP: no-op)");
+        Long userId = RequestContextUtil.getCurrentUserId();
+        String sessionKey = SESSION_KEY_PREFIX + userId;
+        redisTemplate.delete(sessionKey);
+        log.info("[AuthService] Session revoked userId={}", userId);
     }
 
     /**
      * Mask phone number for logging compliance (F-04).
-     * Example: 13812341234 -> 138****1234
+     * Delegates to SensitiveDataUtil for centralized masking logic.
      */
     public String maskPhone(String phone) {
-        if (phone == null || phone.length() < 7) {
-            return "****";
-        }
-        return phone.substring(0, 3) + "****" + phone.substring(phone.length() - 4);
+        return SensitiveDataUtil.maskPhone(phone);
     }
 
     /**
@@ -207,7 +220,8 @@ public class AuthServiceImpl implements AuthService {
      * Generate JWT token with HMAC-SHA256.
      * Payload: {userId, exp}
      */
-    public String generateJwt(Long userId, String phone) {
+    @AiGenerated(reason = "手写 JWT 实现，未经安全审计，需确认签名算法合规", generatedAt = "2026-03-09", reviewBy = "2026-Q2")
+    public String generateJwt(Long userId) {
         try {
             String header = Base64.getUrlEncoder().withoutPadding()
                     .encodeToString("{\"alg\":\"HS256\",\"typ\":\"JWT\"}".getBytes(StandardCharsets.UTF_8));
