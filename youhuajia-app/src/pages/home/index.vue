@@ -85,12 +85,13 @@ const progressPercent = computed(() => {
 })
 
 const pressureLevelText = computed(() => {
-  const map = { HEALTHY: '健康', MODERATE: '中等', HIGH: '偏高', CRITICAL: '严重' }
+  const map = { HEALTHY: '健康', MODERATE: '中等', HEAVY: '偏高', SEVERE: '严重' }
   return map[funnelStore.pressureLevel] || '未检测'
 })
 
 function startCheck() {
-  uni.navigateTo({ url: '/pages/page1-safe-entry/index' })
+  funnelStore.advanceStep(2)
+  uni.navigateTo({ url: '/pages/page2-pressure-check/index' })
 }
 
 function continueAssessment() {
@@ -124,7 +125,7 @@ function viewProgress() {
 
 function restartAssessment() {
   funnelStore.reset()
-  uni.navigateTo({ url: '/pages/page1-safe-entry/index' })
+  uni.navigateTo({ url: '/pages/page2-pressure-check/index' })
 }
 </script>
 
@@ -190,7 +191,7 @@ function restartAssessment() {
           </view>
           <view v-if="funnelStore.pressureIndex > 0" class="info-item">
             <text class="info-label">压力指数</text>
-            <text class="info-value">{{ (funnelStore.pressureIndex * 100).toFixed(0) }}% · {{ pressureLevelText }}</text>
+            <text class="info-value">{{ funnelStore.pressureIndex }}% · {{ pressureLevelText }}</text>
           </view>
         </view>
       </view>

@@ -176,6 +176,8 @@ export const useFunnelStore = defineStore('funnel', () => {
     score.value = 0
     currentStep.value = 1
     financeProfile.value = null
+    pressureIndex.value = 0
+    pressureLevel.value = 'HEALTHY'
     actionLayers.value = {
       layer1: { completed: false, reportId: null },
       layer2: { completed: false },
