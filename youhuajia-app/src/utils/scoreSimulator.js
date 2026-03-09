@@ -363,7 +363,7 @@ export function simulateImprovement(input, improvements = []) {
  * @returns {Object} calculateScore 所需的 input（含 mortgageCount 用于分群匹配）
  */
 export function buildScoreInput(profileStore, funnelStore, debtStore) {
-  const profile = profileStore?.profile || {}
+  const profile = profileStore?.profile || funnelStore?.financeProfile || {}
   const debts = debtStore?.debts || []
 
   const monthlyPayment = profile.monthlyPayment || funnelStore?.monthlyPayment || 5000

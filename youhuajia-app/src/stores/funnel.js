@@ -222,6 +222,6 @@ export const useFunnelStore = defineStore('funnel', () => {
   }
 }, {
   unistorage: {
-    paths: ['score', 'currentStep', 'pressureIndex', 'pressureLevel', 'monthlyPayment', 'monthlyIncome', 'actionLayers', 'checklist'],
+    paths: ['score', 'currentStep', 'pressureIndex', 'pressureLevel', 'monthlyPayment', 'monthlyIncome', 'financeProfile', 'actionLayers', 'checklist'],
   },
 })
