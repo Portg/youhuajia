@@ -99,8 +99,12 @@ export const useFunnelStore = defineStore('funnel', () => {
     syncPlanToBackend()
   }
 
-  /** 将 actionLayers 当前状态持久化到后端（fire-and-forget，失败不阻断前端） */
+  /**
+   * 将 actionLayers 当前状态持久化到后端（fire-and-forget，失败不阻断前端）。
+   * 仅低分用户使用 improvement_plan 表；正常用户进度由报告系统追踪，互斥。
+   */
   function syncPlanToBackend() {
+    if (!isLowScore.value) return
     upsertImprovementPlan({
       layer1Completed: actionLayers.value.layer1.completed,
       layer1ReportId: actionLayers.value.layer1.reportId,
@@ -153,9 +157,10 @@ export const useFunnelStore = defineStore('funnel', () => {
         setFinanceProfile(profileData)
       }
 
-      // 同步后端改善计划进度到本地（换设备/重装恢复）
+      // 低分用户：同步后端改善计划进度到本地（换设备/重装恢复）
+      // 正常用户进度由报告系统追踪，不读 improvement_plan，避免覆盖 unistorage 完成状态
       const planData = planRes.status === 'fulfilled' ? planRes.value : null
-      if (planData) {
+      if (planData && isLowScore.value) {
         actionLayers.value.layer1.completed = planData.layer1Completed ?? false
         actionLayers.value.layer1.reportId  = planData.layer1ReportId ?? null
         actionLayers.value.layer2.completed = planData.layer2Completed ?? false
